@@ -86,7 +86,7 @@ Welcome to the **Delivery System Backend API**! This API enables a seamless deli
 ### 1️⃣ Clone the Repository
 ```sh
 git clone https://github.com/Manba75/manba-s-ts-project.git
-cd delivery-system
+cd manba-s-ts-project
 ```
 
 ### 2️⃣ Install Dependencies
