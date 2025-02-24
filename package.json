@@ -1,0 +1,48 @@
+{
+  "name": "ts-backneds",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/app.js",
+  "dependencies": {
+    "@types/socket.io": "^3.0.2",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dateformat": "^5.0.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.17.1",
+    "ini": "^5.0.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.10.0",
+    "nodemon": "^3.1.9",
+    "path": "^0.12.7",
+    "pg": "^8.13.3",
+    "request-ip": "^3.3.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/dateformat": "^5.0.3",
+    "@types/dotenv": "^8.2.3",
+    "@types/express": "^4.17.1",
+    "@types/ini": "^4.1.1",
+    "@types/joi": "^17.2.3",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/node": "^22.13.4",
+    "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.11.11",
+    "@types/request-ip": "0.0.41",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "scripts": {
+    "dev": "npx ts-node-dev --respawn src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js"
+  },
+  "author": "",
+  "license": "ISC"
+}

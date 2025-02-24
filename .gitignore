@@ -1,0 +1,6 @@
+
+# dependencies
+node_modules/
+tslint.json
+.env
+build/
