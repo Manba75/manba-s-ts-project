@@ -85,7 +85,7 @@ Welcome to the **Delivery System Backend API**! This API enables a seamless deli
 
 ### 1️⃣ Clone the Repository
 ```sh
-git clone https://github.com/your-repo/delivery-system.git
+git clone https://github.com/Manba75/manba-s-ts-project.git
 cd delivery-system
 ```
 
