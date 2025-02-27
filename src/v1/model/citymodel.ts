@@ -178,17 +178,14 @@ async getAllCity() {
   let return_data = {
     error: true,
     message: " ",
-    data: {},
+    data: {
+      result:new Array()
+    },
   };
 
   try {
-    let cityResult = await this.select(
-      this.table,
-      "*",
-      "WHERE is_deleted = FALSE",
-      "",
-      ""
-    );
+    this.where= "WHERE is_deleted = FALSE"
+    let cityResult = await this.allRecords("*");
 
     if (cityResult.length === 0) {
       return_data.message = "No cities found.";

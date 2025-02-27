@@ -367,7 +367,7 @@ async getAlldpartner() {
     let return_data = {
       error: true,
       message: "",
-      data: {},
+      data: { result:new Array()},
     };
 
     try {

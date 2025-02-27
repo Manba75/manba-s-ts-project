@@ -134,7 +134,9 @@ export class dbVehicleType extends appdb {
     let return_data = {
       error: true,
       message: "",
-      data: [],
+      data: {
+        result:new Array()
+      },
     };
 
     try {

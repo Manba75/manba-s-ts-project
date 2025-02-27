@@ -287,7 +287,7 @@ async getAllOrders() {
   const return_data = {
     error: true,
     message: "",
-    data: null,
+    data: { result:new Array()},
   };
 
   try {
