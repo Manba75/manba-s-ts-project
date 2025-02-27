@@ -1,43 +1,35 @@
 
-// Exporting an instance of MailService for use throughout the app
-// module.exports=  MailService;
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 
-dotenv.config(); // Load environment variables before usage
+dotenv.config(); 
 
-export class MailService {
-  private transporter: nodemailer.Transporter;
+export class MailService 
+{
 
-  constructor() {
-    // Verify required environment variables
-    if (!process.env.USER_EMAIL || !process.env.USER_PASS) {
-      throw new Error("Missing SMTP credentials in .env file");
-    }
+private transporter: nodemailer.Transporter;
 
-    // Configure nodemailer transporter
-    this.transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.USER_EMAIL,
-        pass: process.env.USER_PASS, // Use App Password if 2FA is enabled
-      },
-    });
-
-    // Verify transporter connection
-    // this.transporter.verify((error, success) => {
-    //   if (error) {
-    //     console.error("SMTP Connection Error:", error);
-    //   } else {
-    //     console.log("MailService is ready to send emails");
-    //   }
-    // });
+constructor() {
+  // Verify required environment variables
+  if (!process.env.USER_EMAIL || !process.env.USER_PASS) {
+    throw new Error("Missing SMTP credentials in .env file");
   }
 
+  // Configure nodemailer transporter
+  this.transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.USER_EMAIL,
+      pass: process.env.USER_PASS, // Use App Password if 2FA is enabled
+    },
+  });
+
+}
+
   // Send OTP email for verification
-  public async sendOTPMail(email: string, otp: number): Promise<void> {
+public async sendOTPMail(email: string, otp: number) {
     await this.transporter.sendMail({
-      from: `"Your Company Name" <${process.env.USER_EMAIL}>`, // Display name
+      from: `"Your Company Name" <${process.env.USER_EMAIL}>`, 
       to: email,
       subject: "Email Verification OTP",
       text: `Your OTP is: ${otp}. It is valid for 10 minutes.`,
@@ -46,7 +38,7 @@ export class MailService {
   }
 
   // Send reset link email
-  public async sendResetLink(email: string, resetLink: string): Promise<void> {
+public async sendResetLink(email: string, resetLink: string){
     await this.transporter.sendMail({
       from: `"Your Company Name" <${process.env.USER_EMAIL}>`,
       to: email,
@@ -57,11 +49,7 @@ export class MailService {
   }
 
   // Send OTP for order verification
-  public async sendOrderOTPMail(
-    orderId: string,
-    email: string,
-    otp: number
-  ): Promise<void> {
+public async sendOrderOTPMail( orderId: string,email: string,otp: number){
     await this.transporter.sendMail({
       from: `"Your Company Name" <${process.env.USER_EMAIL}>`,
       to: email,

@@ -8,9 +8,9 @@ import { error } from 'console';
 const router =express.Router();
 
 router.post("/create",cityValidation,createCityController)
-router.put("/update/:id", cityValidation, updateCityController);
-router.put("/delete/:id", deleteCityController);
-router.get("/city/:id",  getCityByIdController);
+router.put("/update", idValidation,cityValidation, updateCityController);
+router.put("/delete", idValidation,deleteCityController);
+router.get("/city",idValidation,  getCityByIdController);
 router.get("/cities", getAllCitiesController);
 module.exports = router;
 
@@ -60,15 +60,29 @@ async function createCityController(req: any, res: any, next: any){
   }
 };
 
+// id validtaion
+function idValidation(req: any, res: any, next: any) {
+  const schema = Joi.object({
+    id: Joi.number().integer().min(1).required().messages({
+      "number.base": "City ID must be a number",
+      "number.integer": "City ID must be an integer",
+      "number.min": "City ID must be greater than 0",
+      "any.required": "City ID is required"
+    }),
+  });
+
+    if (!validationsObj.validateRequest(req, res, next, schema)) {
+      return;
+    }
+  
+    next();
+}
 // Get City by ID
 async function getCityByIdController(req: any, res: any, next: any) {
   try {
-    const { id } = req.params;
+    const { id } = req.body;
 
-    if (!id || id === "0") {
-      return res.send(functionsObj.output(0, "City ID is required"));
-    }
-
+  
     const city: any = await cityObj.getCityById(id);
 
     if (city.error) {
@@ -98,27 +112,12 @@ async function getAllCitiesController(req: any, res: any, next: any) {
   }
 }
 
-function idValidation(req: any, res: any, next: any) {
-  const schema = Joi.object({
-    id: Joi.number().integer().min(1).required().messages({
-      "number.base": "City ID must be a number.",
-      "number.integer": "City ID must be an integer.",
-      "number.min": "City ID must be at least 1.",
-      "any.required": "City ID is required.",
-    }),
-  });
 
-  if (!validationsObj.validateRequest(req, res, next, schema)) {
-    return;
-  }
-
-  next();
-}
 // Update City
 async function updateCityController(req: any, res: any, next: any) {
   try {
-    const { id } = req.params;
-    const { city, state } = req.body;
+    
+    const {id, city, state } = req.body;
 
     const updatedCity: any = await cityObj.updateCity(id, city, state);
 
@@ -138,7 +137,7 @@ async function updateCityController(req: any, res: any, next: any) {
 
 async function deleteCityController(req: any, res: any, next: any) {
   try {
-    const { id } = req.params;
+    const { id } = req.body;
 
    
 
@@ -148,7 +147,7 @@ async function deleteCityController(req: any, res: any, next: any) {
       return res.send(functionsObj.output(0, "City not found"));
     }
 
-    return res.send(functionsObj.output(1, "City deleted successfully"));
+    return res.send(functionsObj.output(1, "City deleted successfully",deletedCity.data));
   } catch (error: any) {
     console.error("Error deleting city:", error);
     return res.send(functionsObj.output(0, "Internal server error", error));

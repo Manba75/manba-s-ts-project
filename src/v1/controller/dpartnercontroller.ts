@@ -12,6 +12,7 @@ import { dpartnerAuthenticate  } from "../../v1/index";
 import { dbDpartners } from "../model/dpartnersmodel";
 import { dbCity } from "../model/citymodel";
 import { dbVehicleType } from "../model/vehicletypemodel";
+import { generateOTP } from "../library/generateOTP";
 
 const router = express.Router();
 
@@ -23,22 +24,10 @@ router.post("/forgot-password", emailSchema, forgotPassword);
 router.post("/reset-password", resetPasswordSchema, resetPassword);
 router.get("/get-dpartners", getAlldpartners);
 router.get("/get-profile/:id", dpartnerAuthenticate, getOnedpartner);
-router.put(
-  "/update-profile",
-  updateProfileSchema,
-  dpartnerAuthenticate,
-
-  updatedpartnerProfile
-);
+router.put("/update-profile", dpartnerAuthenticate ,updateProfileSchema ,updatedpartnerProfile);
 router.post("/check-email", emailSchema, checkEmail);
 router.put("/delete-profile/:id", dpartnerAuthenticate, deletedpartner);
-router.put(
-  "/isAvailable",
-
-  AvailabilitySchema,
-  dpartnerAuthenticate,
-  dpartnerIsAvailable
-);
+router.put( "/isAvailable",dpartnerAuthenticate,AvailabilitySchema,dpartnerIsAvailable);
 
 module.exports = router;
 
@@ -60,7 +49,7 @@ function signupSchema(req: any, res: any, next: any) {
       .lowercase()
       .required()
       .trim()
-      .replace(/ /g, "")
+      .replace(/'/g, "")
       .messages({
         // "email.base": "Invalid the email format",
         "string.empty": "email must be required",
@@ -74,7 +63,7 @@ function signupSchema(req: any, res: any, next: any) {
         )
       )
       .required()
-      .replace(/ /g, "")
+      .replace(/'/g, "")
       .messages({
         "string.base": "Password must be a string",
         "string.empty": "Password is required",
@@ -86,7 +75,7 @@ function signupSchema(req: any, res: any, next: any) {
       .max(50)
       .required()
       .trim()
-      .replace(/ /g, "")
+      .replace(/'/g, "")
       .messages({
         "string.base": "City name should be a string",
         "string.empty": "City name is required",
@@ -99,7 +88,7 @@ function signupSchema(req: any, res: any, next: any) {
       .max(15)
       .required()
       .trim()
-      .replace(/ /g, "")
+      .replace(/'/g, "")
       .messages({
         "string.base": "License number should be a string",
         "string.empty": "License number is required",
@@ -107,17 +96,17 @@ function signupSchema(req: any, res: any, next: any) {
         "string.min": "License number should be at least 10 characters long",
         "string.max": "License number should not exceed 15 characters",
       }),
-    vehicle_name: Joi.string().trim().replace(/ /g, "").messages({
+    vehicle_name: Joi.string().trim().replace(/'/g, "").messages({
       "string.empty": "License number is required",
     }),
     vehicletype: Joi.string().messages({
       "string.empty": "vehicle type mustbe required",
     }),
-    vehicle_number: Joi.string().trim().replace(/ /g, "").messages({
+    vehicle_number: Joi.string().trim().replace(/'/g, "").messages({
       "string.empty": "License number is required",
     }),
     dpartner_phone: Joi.string()
-      .replace(/ /g, "")
+      .replace(/'/g, "")
       .trim()
       .length(10)
       .pattern(/^[0-9]+$/)
@@ -140,8 +129,8 @@ function signupSchema(req: any, res: any, next: any) {
 async function signup(req: any, res: any, next: any) {
   try {
     const {
-      city, // Selected from frontend dropdown
-      vehicletype, // Selected from frontend dropdown
+      city, 
+      vehicletype, 
       dpartner_email,
       dpartner_pass,
       dpartner_licence,
@@ -152,56 +141,37 @@ async function signup(req: any, res: any, next: any) {
 
     const createdip: string | null = requestIp.getClientIp(req) || "";
 
-    // Generate OTP
-    const generateOTP = require("../library/generateOTP");
+    
     const otp: number = generateOTP();
     const hashpassword: string = await bcrypt.hash(dpartner_pass, 10);
 
     let city_id: any = await cityObj.getCityIdByCityName(city);
+ 
     if (city_id.error) {
       return res.send(functionsObj.output(0, city_id.message));
     }
-    let vehicleType_id: any = await vehicletypeObj.getVehicleTypeIdByName(
-      vehicletype
-    );
-   // console.log(vehicleType_id);
+    let vehicleType_id: any = await vehicletypeObj.getVehicleTypeIdByName(vehicletype);
+   
     if (vehicleType_id.error) {
       return res.send(functionsObj.output(0, vehicleType_id.message));
     }
 
-    let newdpartner: any = await dpartnerObj.insertDpartner(
-     city_id.data,
-    vehicleType_id.data,
-    dpartner_email,
-   hashpassword,
-      createdip,
-    dpartner_licence,
-    dpartner_phone,
-    vehicle_number,
-    vehicle_name,
-    otp
-    );
-  //  console.log("nw", newdpartner.data);
-
+    let newdpartner: any = await dpartnerObj.insertDpartner(city_id.data, vehicleType_id.data.id, dpartner_email, hashpassword, createdip,dpartner_licence, dpartner_phone, vehicle_number,vehicle_name, otp);
+ 
     if (newdpartner.error) {
       return res.send(functionsObj.output(0, newdpartner.message));
-    } else {
-      // Send OTP email
+    } 
+     
 
-      await mailService.sendOTPMail(dpartner_email, otp);
+  await mailService.sendOTPMail(dpartner_email, otp);
 
-      const token: string | null = generateTokenAndSetCookies(
-        res,
-        newdpartner.data.id
-      );
-      if (!token) {
-        return res.send(functionsObj.output(0, "Generating token error"));
-      }
+  const token: string | null = generateTokenAndSetCookies(res,newdpartner.data.id);
+  if (!token) {
+    return res.send(functionsObj.output(0, "Generating token error"));
+  }
 
-      return res.send(
-        functionsObj.output(1, newdpartner.message, newdpartner.data)
-      );
-    }
+  return res.send(functionsObj.output(1, newdpartner.message, newdpartner.data));
+  
   } catch (error: any) {
     console.log("err", error);
     next(error);
@@ -212,25 +182,9 @@ async function signup(req: any, res: any, next: any) {
 //verification schema
 function verifyOTPSchema(req: any, res: any, next: any) {
   const schema = Joi.object({
-    email: Joi.string()
-      .email({
-        minDomainSegments: 2,
-        tlds: { allow: ["com", "net"] },
-      })
-      .lowercase()
-      .trim()
-      .required()
-      .replace(/ /g, "")
-      .messages({
-        "string.empty": "Email is required.",
-        "string.email": "Invalid email format.",
-      }),
-    otp: Joi.number().integer().min(100000).max(999999).required().messages({
-      "number.base": "OTP must be a number",
-      "number.min": "OTP must be a 6-digit number",
-      "number.max": "OTP must be a 6-digit number",
-      "any.required": "OTP is required",
-    }),
+    email: Joi.string().email({minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({"string.empty": "Email is required.","string.email": "Invalid email format.", }),
+    
+    otp: Joi.number().integer().min(100000).max(999999).required().messages({"number.base": "OTP must be a number","number.min": "OTP must be a 6-digit number","number.max": "OTP must be a 6-digit number","any.required": "OTP is required",}),
   });
 
   let validationsObj = new validations();
@@ -245,16 +199,12 @@ function verifyOTPSchema(req: any, res: any, next: any) {
 async function verifydpartnerOTP(req: any, res: any, next: any) {
   try {
     const { email, otp } = req.body;
-
-    // Call the verifydpartnerOTP function from dbcustomers model
     const result = await dpartnerObj.verifydpartnerOTP(email, otp);
-
-    // Send response
     if (result.error) {
       return res.send(functionsObj.output(0, result.message));
-    } else {
-      return res.send(functionsObj.output(1, result.message, result.data));
-    }
+    } 
+   return res.send(functionsObj.output(1, result.message, result.data));
+    
   } catch (error) {
     console.error("Error in verifydpartnerOTPController:", error);
     return res.send(functionsObj.output(0, "Internal server error", error));
@@ -264,19 +214,7 @@ async function verifydpartnerOTP(req: any, res: any, next: any) {
 //resend otp schema
 function resendOTPSchema(req: any, res: any, next: any) {
   const schema = Joi.object({
-    email: Joi.string()
-      .email({
-        minDomainSegments: 2,
-        tlds: { allow: ["com", "net"] },
-      })
-      .lowercase()
-      .trim()
-      .required()
-      .replace(/ /g, "")
-      .messages({
-        "string.empty": "Email is required.",
-        "string.email": "Invalid email format.",
-      }),
+    email: Joi.string().email({minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({"string.empty": "Email is required.", "string.email": "Invalid email format.", }),
   });
 
   let validationsObj = new validations();
@@ -295,9 +233,10 @@ async function resendOTPController(req: any, res: any, next: any) {
     let result = await dpartnerObj.resendOTP(email);
     if (result.error) {
       return res.send(functionsObj.output(0, result.message));
-    } else {
-      return res.send(functionsObj.output(1, result.message, result.data));
-    }
+    } 
+      
+return res.send(functionsObj.output(1, result.message, result.data));
+    
   } catch (error) {
     console.error("Error in verifydpartnerOTPController:", error);
     return res.send(functionsObj.output(0, "Internal server error", error));
@@ -308,35 +247,14 @@ async function resendOTPController(req: any, res: any, next: any) {
 // login schema validation
 function loginSchema(req: any, res: any, next: any) {
   const schema = Joi.object({
-    email: Joi.string()
-      .trim()
-      .email({
-        minDomainSegments: 2,
-        tlds: { allow: ["com", "net"] },
-      })
-      .lowercase()
-      .required()
-      .trim()
-      .replace(/ /g, "")
-      .messages({
-        // "email.base": "Invalid the email format",
+    email: Joi.string().trim().email({minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().required().trim().replace(/'/g, "").messages({
         "string.empty": "email must be required",
         "string.email": "Invalid email format",
       }),
-    password: Joi.string()
-      .trim()
-      .pattern(
-        new RegExp(
-          "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$"
-        )
-      )
-      .required()
-      .replace(/ /g, "")
-      .messages({
+    password: Joi.string().trim().pattern(new RegExp( "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().replace(/'/g, "").messages({
         "string.base": "Password must be a string",
         "string.empty": "Password is required",
-        "string.pattern.base":
-          "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.",
+        "string.pattern.base":"Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.",
       }),
    
    
@@ -351,11 +269,8 @@ function loginSchema(req: any, res: any, next: any) {
 }
 async function login(req: any, res: any, next: any) {
   try {
-    // Validate input
-
     const { email, password } = req.body;
 
-    // Find dpartner by email
     const dpartnerResponse: any = await dpartnerObj.finddpartnerByEmail(email);
 
     if (dpartnerResponse.error) {
@@ -363,21 +278,17 @@ async function login(req: any, res: any, next: any) {
     }
 
     const dpartner = dpartnerResponse.data;
- //  console.log("dpartner",dpartner)
-    // Compare passwords
+
     const isMatch = await bcrypt.compare(password, dpartner.dpartner_password);
     if (!isMatch) {
-      return res.send(
-        functionsObj.output(0, "Email or password does not match")
+      return res.send(functionsObj.output(0, "Email or password does not match")
       );
     }
 
-    // Check email verification
     if (!dpartner.dpartner_isverify) {
       return res.send(functionsObj.output(0, "Email is not verified"));
     }
 
-    // Update last login
     const updateLastLoginResponse: any = await dpartnerObj.updateLastLogin(
       email
     );
@@ -408,25 +319,12 @@ async function forgotPassword(req: any, res: any, next: any) {
       return res.send(functionsObj.output(0, dpartner.message));
     }
 
-    // Generate Reset Token
-    const resetToken = jwt.sign(
-      { reset: true } as object, // Explicitly define the payload as an object
-      process.env.JWT_SECRET as string, // Ensure JWT_SECRET is a string
-      {
-        expiresIn: "10m",
-      }
-    );
+    
+    const resetToken = jwt.sign({ reset: true } as object, process.env.JWT_SECRET as string, {expiresIn: "10m",});
 
-    const resetTokenExpiry = new Date(Date.now() + 10 * 60000)
-      .toISOString()
-      .replace("T", " ")
-      .slice(0, -1);
+    const resetTokenExpiry = new Date(Date.now() + 10 * 60000).toISOString().replace("T", " ").slice(0, -1);
 
-    const updateToken: any = await dpartnerObj.updateResetToken(
-      email,
-      resetToken,
-      resetTokenExpiry
-    );
+    const updateToken: any = await dpartnerObj.updateResetToken(email,resetToken,resetTokenExpiry);
 
     if (updateToken.error) {
       return res.send(functionsObj.output(0, updateToken.message));
@@ -436,9 +334,7 @@ async function forgotPassword(req: any, res: any, next: any) {
 
     await mailService.sendResetLink(email, resetLink);
 
-    return res.send(
-      functionsObj.output(1, "Reset link sent to your email.", { resetLink })
-    );
+    return res.send(functionsObj.output(1, "Reset link sent to your email.", { resetLink }));
   } catch (error) {
     console.error("Error in forgotPassword:", error);
     next(error);
@@ -448,53 +344,21 @@ async function forgotPassword(req: any, res: any, next: any) {
 // reset password schema
 function resetPasswordSchema(req: any, res: any, next: any) {
   const schema = Joi.object({
-    email: Joi.string()
-      .email({
-        minDomainSegments: 2,
-        tlds: { allow: ["com", "net"] },
-      })
-      .lowercase()
-      .trim() // Trim any leading or trailing spaces
-      .required()
-      .replace(/ /g, "")
-      .messages({
+    email: Joi.string().email({ minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({
         "string.empty": "Email is required",
         "string.email": "Invalid email format",
       }),
 
-    newPassword: Joi.string()
-      .pattern(
-        new RegExp(
-          "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$"
-        )
-      )
-      .required()
-      .trim()
-      .replace(/ /g, "") // Trim any leading or trailing spaces
-      .messages({
+    newPassword: Joi.string().pattern(new RegExp( "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$" ) ).required().trim().replace(/'/g, "") .messages({
         "string.base": "Password must be a string",
         "string.empty": "Password is required",
         "string.pattern.base":
           "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.",
       }),
 
-    confirmPassword: Joi.string()
-      .required()
-      .valid(Joi.ref("newPassword")) // Ensures it matches newPassword
-      .trim()
-      .replace(/ /g, "") // Trim any leading or trailing spaces
-      .messages({
-        "any.only": "Confirm password must match new password",
-        "string.empty": "Confirm password is required",
-      }),
+    confirmPassword: Joi.string().required().valid(Joi.ref("newPassword")) .replace(/'/g, "") .messages({   "any.only": "Confirm password must match new password",   "string.empty": "Confirm password is required",}),
 
-    resetToken: Joi.string()
-      .required()
-      .trim()
-      .replace(/ /g, "") // Trim any leading or trailing spaces
-      .messages({
-        "string.empty": "Token is required",
-      }),
+    resetToken: Joi.string().required().trim().replace(/'/g, "") .messages({ "string.empty": "Token is required", }),
   });
 
   let validationsObj = new validations();
@@ -509,27 +373,17 @@ async function resetPassword(req: any, res: any, next: any) {
   try {
     const { email, newPassword, confirmPassword, resetToken } = req.body;
 
-    // Check if passwords match
-    if (newPassword !== confirmPassword) {
-      return res.send(functionsObj.output(0, "Passwords do not match."));
-    }
-
-    // Find dpartner by email
     const dpartner: any = await dpartnerObj.finddpartnerByEmail(email);
-   // console.log(dpartner.dpartner_email);
     if (dpartner.error || !dpartner.data) {
       return res.send(functionsObj.output(0, dpartner.message));
     }
 
     const { dpartner_resettoken, dpartner_resettoken_expiry } = dpartner.data;
    
-
-    // Check if the reset token is valid
     if (!dpartner_resettoken || resetToken !== dpartner_resettoken) {
       return res.send(functionsObj.output(0, "Invalid or expired token."));
     }
 
-    // Check if the reset token has expired
     let expiryTime = new Date(dpartner_resettoken_expiry + " UTC");
      const currentTime = new Date();
     if (currentTime > expiryTime) {
@@ -539,17 +393,12 @@ async function resetPassword(req: any, res: any, next: any) {
     
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    const updateSuccess: any = await dpartnerObj.updatePassword(
-      email,
-      hashedPassword
-    );
+    const updateSuccess: any = await dpartnerObj.updatePassword( email, hashedPassword );
     if (updateSuccess.error) {
       return res.send(functionsObj.output(0, updateSuccess.message));
-    } else {
-      return res.send(
-        functionsObj.output(1, updateSuccess.message, updateSuccess.data)
-      );
-    }
+    } 
+    return res.send(functionsObj.output(1, updateSuccess.message, updateSuccess.data));
+    
   } catch (error) {
     console.error("Error in resetPassword:", error);
     return next(error);
@@ -560,7 +409,7 @@ async function resetPassword(req: any, res: any, next: any) {
 async function getAlldpartners(req: any, res: any, next: any) {
   try {
     let dpartners = await dpartnerObj.getAlldpartner();
-   // console.log("u", dpartners);
+   
     if (dpartners.error) {
       return res.send(functionsObj.output(0, dpartners.message));
     } else {
@@ -576,16 +425,10 @@ async function getAlldpartners(req: any, res: any, next: any) {
 
 function updateProfileSchema(req: Request, res: any, next: any) {
   const schema = Joi.object({
-    name: Joi.string().min(2).max(50).trim().replace(/ /g, "").messages({
+    name: Joi.string().min(2).max(50).trim().replace(/'/g, "").messages({
       "string.empty": "name is required",
     }),
-    phone: Joi.string()
-      .length(10)
-      .pattern(/^[0-9]+$/)
-      .required()
-      .replace(/ /g, "")
-      .trim()
-      .messages({
+    phone: Joi.string().length(10).pattern(/^[0-9]+$/).required().replace(/'/g, "").trim().messages({
         "string.empty": "Phone number is required",
         "string.length": "Phone number must be exactly 10 digits",
         "string.pattern.base": "Phone number must only contain numbers",
@@ -604,17 +447,14 @@ function updateProfileSchema(req: Request, res: any, next: any) {
 async function updatedpartnerProfile(req: any, res: any, next: any) {
   try {
     const { name, phone } = req.body;
-    const id = req.user.id; // Get authenticated dpartner ID
-   // console.log(id);
-    // Call the updatedpartnerProfile function from dbcustomers model
+    const id = req.body.user.id; 
     const result = await dpartnerObj.updatedpartnerProfile(id, name, phone);
 
-    // Send response
     if (result.error) {
       return res.send(functionsObj.output(0, result.message));
-    } else {
-      return res.send(functionsObj.output(1, result.message, result.data));
-    }
+    } 
+   return res.send(functionsObj.output(1, result.message, result.data));
+  
   } catch (error) {
     console.error("Error in updatedpartnerProfileController:", error);
     return res.send(functionsObj.output(0, "Internal server error", error));
@@ -624,21 +464,14 @@ async function updatedpartnerProfile(req: any, res: any, next: any) {
 // get one dpartner profile
 async function getOnedpartner(req: any, res: any, next: NextFunction) {
   try {
-    if (!req.user) {
-      return res.send(
-        functionsObj.output(0, "Unauthorized: No dpartner data found")
-      );
+    if (!req.body.user) {
+      return res.send(functionsObj.output(0, "Unauthorized: No dpartner data found"));
     }
 
-    const dpartnerId = req.user.id;
-    // console.log("uid",dpartnerId)
+    const dpartnerId = req.body.user.id;
     const dpartner = await dpartnerObj.finddpartnerById(dpartnerId);
-    // console.log("Fetched dpartner:", dpartner);
-
     if (!dpartner || dpartner.error) {
-      return res.send(
-        functionsObj.output(0, dpartner?.message || "dpartner not found")
-      );
+      return res.send(functionsObj.output(0, dpartner?.message || "dpartner not found") );
     }
 
     return res.send(functionsObj.output(1, dpartner.message, dpartner.data));
@@ -651,19 +484,7 @@ async function getOnedpartner(req: any, res: any, next: NextFunction) {
 // email schema
 function emailSchema(req: any, res: any, next: any) {
   const schema = Joi.object({
-    email: Joi.string()
-      .email({
-        minDomainSegments: 2,
-        tlds: { allow: ["com", "net"] },
-      })
-      .lowercase()
-      .trim()
-      .required()
-      .replace(/ /g, "")
-      .messages({
-        "string.empty": "Email is required.",
-        "string.email": "Invalid email format.",
-      }),
+    email: Joi.string().email({ minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({ "string.empty": "Email is required.","string.email": "Invalid email format.", }),
   });
 
   let validationsObj = new validations();
@@ -681,25 +502,13 @@ async function checkEmail(req: any, res: any, next: any) {
 
 
     const dpartner = await dpartnerObj.finddpartnerByEmail(email);
-  //  console.log("Fetched dpartner:", dpartner);
 
     if (!dpartner || dpartner.error) {
-      // Email not registered, suggest registration
-      return res
-        .status(404)
-        .send(functionsObj.output(0, dpartner.message));
+      return res.status(404).send(functionsObj.output(0, dpartner.message));
     }
 
-    // Email exists, suggest login
-    return res
-      .status(200)
-      .send(
-        functionsObj.output(
-          1,
-          dpartner.message,
-          dpartner.data
-        )
-      );
+  
+    return res.status(200).send(functionsObj.output( 1, dpartner.message, dpartner.data));
   } catch (error) {
     console.error("Error checking email:", error);
     return next(error);
@@ -710,22 +519,18 @@ async function checkEmail(req: any, res: any, next: any) {
 
 async function deletedpartner(req: any, res: any, next: any) {
   try {
-    if (!req.user) {
-      return res
-        .status(401)
-        .send(functionsObj.output(0, "Unauthorized: No dpartner data found"));
+    if (!req.body.user) {
+      return res.status(401).send(functionsObj.output(0, "Unauthorized: No dpartner data found"));
     }
 
-    const dpartnerId = req.user.id;
+    const dpartnerId = req.body.user.id;
     const result = await dpartnerObj.deletedpartnerProfile(dpartnerId);
 
     if (result.error) {
       return res.status(404).send(functionsObj.output(0, result.message));
     }
 
-    return res
-      .status(200)
-      .send(functionsObj.output(1, result.message, result.data));
+    return res.status(200).send(functionsObj.output(1, result.message, result.data));
   } catch (error) {
     console.error("Error deleting dpartner:", error);
     return next(error);
@@ -754,45 +559,20 @@ function AvailabilitySchema(req: any, res: any, next: any) {
 //update delivery partner status
  async function dpartnerIsAvailable (req: any, res: any, next: any){
   try {
-    // Validate user data
-    if (!req.user) {
-      return res
-        .status(401)
-        .json(
-          functionsObj.output(0, "Unauthorized: No delivery partner data found")
-        );
+   
+    if (!req.body.user) {
+      return res.status(401).json( functionsObj.output(0, "Unauthorized: No delivery partner data found"));
     }
-
-    // Extract data from request
-    const dpartnerId = req.user.id;
- //   console.log(dpartnerId)
+    const dpartnerId = req.body.user.id;
     const { isAvailable } = req.body;
 
+    const updateAvailability:any = await dpartnerObj.setdPartnerAvailable(dpartnerId, isAvailable);
 
-    
-    // Update delivery partner availability
-    const updateAvailability = await dpartnerObj.setdPartnerAvailable(
-      dpartnerId,
-      isAvailable
-    );
-
-    // Check if the update failed
     if (updateAvailability.error) {
-      return res
-        .status(400)
-        .json(functionsObj.output(0, updateAvailability.message));
+      return res.status(400).json(functionsObj.output(0, updateAvailability.message));
     }
 
-    // Return success response
-    return res
-      .status(200)
-      .json(
-        functionsObj.output(
-          1,
-          "Successfully updated the availability of the delivery partner",
-          updateAvailability.data
-        )
-      );
+    return res.status(200).json(functionsObj.output( 1, "Successfully updated the availability of the delivery partner",updateAvailability.data));
   } catch (error) {
     console.error("Error updating delivery partner availability:", error);
     return next(error);

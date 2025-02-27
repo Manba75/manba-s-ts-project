@@ -44,34 +44,25 @@ export class dbVehicleType extends appdb {
     };
 
     try {
-      // Check if the vehicle type exists
+    
       this.where = `WHERE vehicletype_type = '${vehicletype}'`;
-      let existingVehicle: any[] = await this.listRecords("*");
+      let existingVehicle: any[] = await this.allRecords("*");
 
       if (existingVehicle.length > 0) {
         const vehicle = existingVehicle[0];
-       // console.log(vehicle);
         if (!vehicle.is_deleted) {
           return_data.message = "Vehicle type already exists.";
           return return_data;
         }
 
-        // Reactivate and update the soft-deleted vehicle type
         let updateData = {
           vehicletype_max_weight: max_weight,
-          vehicletype_updated_on: new Date()
-            .toISOString()
-            .replace("T", " ")
-            .slice(0, -1),
+          vehicletype_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
           vehicletype_created_ip: createdIp,
-          is_deleted: false, // Reactivate the deleted vehicle type
+          is_deleted: false, 
         };
 
-        let updateResult = await this.update(
-          this.table,
-          updateData,
-          `WHERE vehicletype_type = '${vehicletype}' `
-        );
+        let updateResult = await this.update( this.table,updateData,`WHERE vehicletype_type = '${vehicletype}' `);
         if (!updateResult) {
           return_data.message = "Vehicle type update error";
           return return_data;
@@ -164,14 +155,8 @@ export class dbVehicleType extends appdb {
       message: "",
       data: {},
     };
-
-    const vehicletypeResult = await this.select(
-      this.table,
-      "id",
-      `WHERE vehicletype_type = '${vehicletype}'`,
-      "",
-      ""
-    );
+    this.where=`WHERE vehicletype_type = '${vehicletype}'`
+    const vehicletypeResult = await this.allRecords("id")
 
     if (vehicletypeResult.length === 0) {
       return_data.message = "Vehicle type not found";
@@ -217,7 +202,7 @@ export class dbVehicleType extends appdb {
     return return_data;
   }
 
-  async deleteVehicleType(id: number) {
+async deleteVehicleType(id: number) {
     let return_data = {
       error: true,
       message: "",
@@ -226,17 +211,10 @@ export class dbVehicleType extends appdb {
 
     const deleteData = {
       is_deleted: true,
-      vehicletype_updated_on: new Date()
-        .toISOString()
-        .replace("T", " ")
-        .slice(0, -1),
+      vehicletype_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
     };
 
-    const deleteResult = await this.update(
-      this.table,
-      deleteData,
-      `WHERE id = ${id} AND is_deleted = FALSE`
-    );
+    const deleteResult = await this.update(this.table,deleteData,`WHERE id = ${id} AND is_deleted = FALSE` );
 
     if (!deleteResult) {
       return_data.message = `No vehicle type found with ID ${id}`;
@@ -245,7 +223,7 @@ export class dbVehicleType extends appdb {
 
     return_data.error = false;
     return_data.message = "Vehicle type deleted successfully";
-    return_data.data = { id };
+    return_data.data = deleteResult;
     return return_data;
   }
 }

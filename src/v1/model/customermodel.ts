@@ -1,6 +1,7 @@
 import { appdb } from "./appdb";
 import { MailService } from "../library/sendMail";
-import { number } from "joi";
+import { boolean, number } from "joi";
+import { generateOTP } from "../library/generateOTP";
 export class dbcustomers extends appdb {
   constructor() {
     super();
@@ -8,23 +9,18 @@ export class dbcustomers extends appdb {
     this.uniqueField = "id";
   }
 
+
   /* Checking if email exists and creating customer */
-  async createCustomer(
-    email: string,
-    password: string,
-    otp: number, // OTP should be an integer
-    createdIP: string
-  ) {
-    let return_data = {
+async createCustomer(email: string,password: string, otp: number,createdIP: string ) {
+    let return_data: { error: boolean; message: string; data: any } = {
       error: true,
       message: "",
       data: {},
     };
 
     try {
-      // Securely checking if customer exists
-      this.where = `WHERE cust_email = '${email}'`; // Fix: Use parameterized queries in production
-      let existingUser: any[] = await this.listRecords("*");
+      this.where = `WHERE cust_email = '${email}'`; 
+      let existingUser: any[] = await this.allRecords("*");
 
       if (existingUser.length > 0) {
         const user = existingUser[0];
@@ -34,19 +30,12 @@ export class dbcustomers extends appdb {
           return return_data;
         }
 
-        // If user is deleted, update and reactivate the account
         let updateData = {
           cust_password: password,
           cust_isverify: false,
-          cust_verifyotp: otp, // Integer type OTP
-          cust_expiryotp: new Date(Date.now() + 10 * 60000)
-            .toISOString()
-            .replace("T", " ")
-            .slice(0, -1),
-          cust_updated_on: new Date()
-            .toISOString()
-            .replace("T", " ")
-            .slice(0, -1),
+          cust_verifyotp: otp, 
+          cust_expiryotp: new Date(Date.now() + 10 * 60000).toISOString().replace("T", " ").slice(0, -1),
+          cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
           cust_created_ip: createdIP,
           is_deleted: false,
         };
@@ -69,18 +58,9 @@ export class dbcustomers extends appdb {
         cust_password: password,
         cust_isverify: false,
         cust_verifyotp: otp,
-        cust_expiryotp: new Date(Date.now() + 10 * 60000)
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
-        cust_created_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
-        cust_updated_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
+        cust_expiryotp: new Date(Date.now() + 10 * 60000).toISOString().replace("T", " ").slice(0, -1),
+        cust_created_on: new Date().toISOString().replace("T", " ").slice(0, -1),
+        cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
         cust_created_ip: createdIP,
         is_deleted: false,
       };
@@ -102,8 +82,9 @@ export class dbcustomers extends appdb {
       return return_data;
     }
   }
+
   // verify user oTP
-  async verifyUserOTP(email: string, otp: number | null) {
+async verifyUserOTP(email: string, otp: number | null) {
     let return_data = {
       error: true,
       message: "",
@@ -113,7 +94,7 @@ export class dbcustomers extends appdb {
     try {
       // Fetch user details using email
       this.where = `WHERE cust_email = '${email}' AND is_deleted = false`;
-      let existingUser: any[] = await this.listRecords("*");
+      let existingUser: any[] = await this.allRecords("*");
 
       if (existingUser.length === 0) {
         return_data.message = "User not found.";
@@ -121,38 +102,25 @@ export class dbcustomers extends appdb {
       }
 
       let user = existingUser[0];
-
-      // Check if OTP matches
       if (user.cust_verifyotp !== otp) {
         return_data.message = "Invalid OTP.";
         return return_data;
       }
 
-      let storedExpiryTime = new Date(user.cust_expiryotp + " UTC"); // Force UTC interpretation
-      let currentTime = new Date(); // Already in UTC
-
-      // console.log("Current Time (UTC):", currentTime.toISOString());
-      // console.log("OTP Expiry Time (UTC):", storedExpiryTime.toISOString());
-
+      let storedExpiryTime = new Date(user.cust_expiryotp + " UTC"); 
+      let currentTime = new Date(); 
       if (currentTime > storedExpiryTime) {
         return_data.message = "OTP has expired.";
         return return_data;
       }
 
-      // Update user verification status
       let updateData = {
         cust_isverify: true,
-        cust_updated_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
-       
+        cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
 
-      console.log(updateData);
 
       let updateResult = await this.updateRecord(user.id, updateData);
-      // console.log(updateResult);
       if (!updateResult) {
         return_data.message = "Error updating user verification status.";
         return return_data;
@@ -170,13 +138,10 @@ export class dbcustomers extends appdb {
     }
   }
 
-  // resend otp
   /**
    * Resend OTP function
-   * @param email - User email to resend OTP
-   * @returns Response object with status and message
    */
-  async resendOTP(email: string) {
+async resendOTP(email: string) {
     let return_data = {
       error: true,
       message: "",
@@ -184,9 +149,8 @@ export class dbcustomers extends appdb {
     };
 
     try {
-      // Check if the user exists and is not deleted
       this.where = `WHERE cust_email = '${email}' AND is_deleted = false`;
-      let existingUser: any[] = await this.listRecords("*");
+      let existingUser: any[] = await this.allRecords("*");
 
       if (existingUser.length === 0) {
         return_data.message = "User not found.";
@@ -194,44 +158,27 @@ export class dbcustomers extends appdb {
       }
 
       let user = existingUser[0];
-      // console.log("user", user);
-
-      // Generate a new OTP (6-digit)
-      const generateOTP = require("../library/generateOTP");
+     
       let newOTP: number = generateOTP();
-      // console.log("oyp", newOTP);
-      // Set OTP expiration time (10 minutes from now)
-      let otpExpiryTime: string | null = new Date(Date.now() + 10 * 60000)
-        .toISOString()
-        .replace("T", " ")
-        .slice(0, -1);
-      // console.log("oyp", otpExpiryTime);
-      // Update the OTP and expiry time in the database
+      let otpExpiryTime: string | null = new Date(Date.now() + 10 * 60000).toISOString().replace("T", " ").slice(0, -1);
 
       let updateData = {
         cust_verifyotp: Number(newOTP),
         cust_expiryotp: otpExpiryTime,
-        cust_updated_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
+        cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
-      // console.log("u5", updateData);
-      //   this.where = `WHERE cust_email = '${email}' AND is_deleted = false`;
       let updateResult = await this.updateRecord(user.id, updateData);
-      // console.log("u", updateResult);
       if (!updateResult) {
         return_data.message = "not update otp.";
         return return_data;
-      } else {
-        let mailService = new MailService();
-        await mailService.sendOTPMail(email, newOTP);
+      } 
+      let mailService = new MailService();
+      await mailService.sendOTPMail(email, newOTP);
 
-        return_data.error = false;
-        return_data.message =
-          "OTP resent successfully. Please check your email.";
-        return return_data;
-      }
+      return_data.error = false;
+      return_data.message ="OTP resent successfully. Please check your email.";
+      return return_data;
+    
     } catch (error) {
       console.error("Error resending OTP:", error);
       return_data.error = true;
@@ -240,13 +187,11 @@ export class dbcustomers extends appdb {
     }
   }
 
-  //login and finding user
   /**
    * Find user by email for login
-   * @param email - User email
-   * @returns - User record or error
+  
    */
-  async findUserByEmail(email: string) {
+async findUserByEmail(email: string) {
     let return_data = {
       error: true,
       message: "",
@@ -255,7 +200,7 @@ export class dbcustomers extends appdb {
 
     try {
       this.where = `WHERE cust_email = '${email}' AND is_deleted=false`;
-      let result = await this.listRecords("*");
+      let result = await this.allRecords("*");
 
       if (result.length === 0) {
         return_data.message = "User not found";
@@ -266,6 +211,7 @@ export class dbcustomers extends appdb {
       return_data.message = "login successfully";
       return_data.data = result[0];
       return return_data;
+
     } catch (error) {
       console.error("Database Query Error:", error);
       return_data.message = "Database error while fetching user";
@@ -275,10 +221,8 @@ export class dbcustomers extends appdb {
 
   /**
    * Update last login timestamp
-   * @param email - User email
-   * @returns - Success or failure response
    */
-  async updateLastLogin(email: string) {
+async updateLastLogin(email: string) {
     let return_data = {
       error: true,
       message: "",
@@ -287,17 +231,10 @@ export class dbcustomers extends appdb {
 
     try {
       let updateData = {
-        cust_last_login: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
+        cust_last_login: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
 
-      let updateResult = await this.update(
-        this.table,
-        updateData,
-        `WHERE cust_email = '${email}'`
-      );
+      let updateResult = await this.update(this.table,updateData,`WHERE cust_email = '${email}'`);
 
       if (!updateResult) {
         return_data.message = "Failed to update last login";
@@ -306,18 +243,18 @@ export class dbcustomers extends appdb {
 
       return_data.error = false;
       return return_data;
+
     } catch (error) {
       console.error("Database Update Error:", error);
       return_data.message = "Error updating ";
       return return_data;
     }
   }
+
   // updated reset token
-  async updateResetToken(
-    email: string,
-    resetToken: string | null,
-    resetTokenExpiry: string | null
-  ) {
+async updateResetToken( email: string,resetToken: string | null,resetTokenExpiry: string | null) 
+{
+    
     let return_data = {
       error: true,
       message: "",
@@ -327,10 +264,7 @@ export class dbcustomers extends appdb {
     try {
       let updateData: any = {
         cust_resettoken: resetToken ?? null,
-        cust_updated_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
+        cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
 
       if (resetTokenExpiry === null || resetTokenExpiry === "") {
@@ -338,13 +272,7 @@ export class dbcustomers extends appdb {
       } else {
         updateData.cust_resettoken_expiry = resetTokenExpiry;
       }
-
-      console.log("Final updateData before query:", updateData);
-      let updateResult = await this.update(
-        this.table,
-        updateData,
-        `WHERE cust_email = '${email}'`
-      );
+      let updateResult = await this.update(this.table,updateData,`WHERE cust_email = '${email}'`);
 
       if (!updateResult) {
         return_data.message = "failed to update resettoken";
@@ -360,8 +288,9 @@ export class dbcustomers extends appdb {
       return return_data;
     }
   }
+
   // updated password
-  async updatePassword(email: string, password: string) {
+async updatePassword(email: string, password: string) {
     let return_data = {
       error: true,
       message: "",
@@ -371,17 +300,10 @@ export class dbcustomers extends appdb {
     try {
       let updateData = {
         cust_password: password,
-        cust_updated_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
+        cust_updated_on: new Date().toISOString().replace("T", " ") .slice(0, -1),
       };
 
-      let updateResult = await this.update(
-        this.table,
-        updateData,
-        `WHERE cust_email = '${email}'`
-      );
+      let updateResult = await this.update(this.table,updateData,`WHERE cust_email = '${email}'`);
 
       if (!updateResult || updateResult.rowCount === 0) {
         return_data.message = "User not found or password update failed.";
@@ -400,25 +322,24 @@ export class dbcustomers extends appdb {
   }
 
   // get all users
-  async getAllUser() {
+async getAllUser() {
     let return_data = {
       error: true,
       message: "",
-      data: {},
+      data: {results:new Array()},
     };
 
     try {
-      // Ensure correct Boolean comparison depending on DB type
       this.where = "WHERE is_deleted= false";
-      let users = await this.listRecords("*");
+      let users = await this.allRecords("*");
 
       if (!users || users.length === 0) {
         return_data.message = "No active users found.";
-      } else {
-        return_data.error = false;
-        return_data.data = users;
-        return_data.message = "Retrieved all active user data successfully.";
-      }
+      } 
+      return_data.error = false;
+      return_data.data = users;
+      return_data.message = "Retrieved all active user data successfully.";
+      
     } catch (error) {
       console.error("Error fetching users from database:", error);
       return_data.message = "Error fetching user data.";
@@ -439,17 +360,10 @@ export class dbcustomers extends appdb {
       let updateData = {
         cust_name: name,
         cust_phone: phone,
-        cust_updated_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
+        cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
 
-      let updateResult = await this.update(
-        this.table,
-        updateData,
-        `WHERE id = ${id} AND is_deleted = false`
-      );
+      let updateResult = await this.updateRecord(id,updateData);
 
       if (!updateResult || updateResult.rowCount === 0) {
         return_data.message = "User not found or profile update failed.";
@@ -476,7 +390,6 @@ export class dbcustomers extends appdb {
     };
 
     try {
-      // Fetch user record
       let userResult = await this.selectRecord(id, "*");
 
       if (!userResult || userResult.length === 0) {
@@ -486,7 +399,7 @@ export class dbcustomers extends appdb {
 
       return_data.error = false;
       return_data.message = "User profile retrieved successfully.";
-      return_data.data = userResult[0]; // Assuming selectRecord returns an array
+      return_data.data = userResult[0]; 
       return return_data;
     } catch (error) {
       console.error("Database Fetch Error:", error);
@@ -506,18 +419,10 @@ export class dbcustomers extends appdb {
     try {
       let updateData = {
         is_deleted: true,
-        cust_updated_on: new Date()
-          .toISOString()
-          .replace("T", " ")
-          .slice(0, -1),
+        cust_updated_on: new Date().toISOString().replace("T", " ") .slice(0, -1),
       };
 
-      // Update user to mark as deleted
-      let userResult = await this.update(
-        this.table,
-        updateData,
-        `WHERE id='${id}' `
-      );
+      let userResult = await this.updateRecord(id,updateData)
 
       if (!userResult) {
         return_data.message = "User not found or already deleted.";
@@ -526,7 +431,7 @@ export class dbcustomers extends appdb {
 
       return_data.error = false;
       return_data.message = "User deleted successfully.";
-      return_data.data = updateData; // Returning updated data
+      return_data.data = updateData; 
       return return_data;
     } catch (error) {
       console.error("Database Fetch Error:", error);
@@ -545,12 +450,9 @@ export class dbcustomers extends appdb {
      };
 
      try {
-       // Fetch user record
-       let userResult = await this.update(
-         this.table,
-         { socket_id: socketId },
-         `WHERE id = ${customerId}`
-       );;
+      let updateData= { socket_id: socketId }
+  
+      let userResult = await this.updateRecord(customerId, updateData);
 
        if (!userResult || userResult.length === 0) {
          return_data.message = " not update socket id.";
@@ -559,7 +461,7 @@ export class dbcustomers extends appdb {
 
        return_data.error = false;
        return_data.message = "User socket id updated successfully.";
-       return_data.data = userResult[0]; // Assuming selectRecord returns an array
+       return_data.data = userResult[0]; 
        return return_data;
      } catch (error) {
        console.error("Database Fetch Error:", error);
@@ -568,6 +470,30 @@ export class dbcustomers extends appdb {
      }
   }
 
-  // customer order get
+  // get socket id 
+  async getCustomerSocketId(customerId: number) {
+    let return_data = {
+      error: true,
+      message: " ",
+      data: {},
+    };
+  
+    try {
+      let custResult = await this.selectRecord(customerId,"socket_id");
+  
+      if (custResult.length === 0) {
+        return_data.message = `No sockekt found with ID`;
+        return return_data;
+      } else {
+        return_data.error = false;
+        return_data.message = "socket retrived successfully";
+        return_data.data = custResult[0];
+        return return_data;
+      }
+    } catch (error) {
+      console.error("Database fetch Error:", error);
+      return_data.message = "Error fetching socketid";
+    }
+  }
   
 }

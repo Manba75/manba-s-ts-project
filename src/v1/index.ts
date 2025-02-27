@@ -7,6 +7,7 @@ import  jwt  from "jsonwebtoken";
 // import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import { dbDpartners } from "./model/dpartnersmodel";
+import { CustomRequestHandler } from "./types/CustomRequestHandler";
 // import orderRoutes from "./orderRoutes.js";
 // import cityRoutes from "./cityRoutes.js";
 // import vehicleTypeRoutes from "./vehicleTypeRoutes.js";
@@ -30,7 +31,7 @@ var dpartnerObj= new dbDpartners();
 //    * @param next Express NextFunction
 //    */
 
-export async function  authenticateCustomer(req: any, res: any, next: any) {
+export async function  authenticateCustomer (req: Request, res: Response, next: NextFunction){
     let return_data = {
       error: true,
       message: "",
@@ -43,14 +44,17 @@ export async function  authenticateCustomer(req: any, res: any, next: any) {
 
       if (!token) {
         return_data.message = "Missing token";
-        return res.send(functionsObj.output(0, return_data.message));
+         res.send(functionsObj.output(0, return_data.message));
+         return
+
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
 
       if (!decoded || typeof decoded !== "object" || !decoded.id) {
         return_data.message = "Invalid token";
-       return res.send(functionsObj.output(0, return_data.message));
+       res.send(functionsObj.output(0, return_data.message));
+       return
       }
 
       const user = await customersObj.findUserById(decoded.id);
@@ -58,15 +62,17 @@ export async function  authenticateCustomer(req: any, res: any, next: any) {
 
       if (!user) {
         return_data.message = "User not found";
-         return res.send(functionsObj.output(0, return_data.message));
+          res.send(functionsObj.output(0, return_data.message));
+          return
       }
 
-       (req as any).user = user.data;
+       req.body.user = user.data;
      next();
     } catch (error) {
       console.error("Token verification error:", error);
       return_data.message = "Unauthorized";
-      return  res.send(functionsObj.output(0, return_data.message));
+       res.send(functionsObj.output(0, return_data.message));
+       return
     }
   }
 
@@ -76,7 +82,7 @@ export async function  authenticateCustomer(req: any, res: any, next: any) {
 //    * @param res Express Response
 //    * @param next Express NextFunction
 //    */
-export async function  dpartnerAuthenticate(req: any, res: any, next: any) {
+export async function  dpartnerAuthenticate(req: Request,res: Response, next: NextFunction) {
     let return_data = {
       error: true,
       message: "",
@@ -89,48 +95,42 @@ export async function  dpartnerAuthenticate(req: any, res: any, next: any) {
 
       if (!token) {
          return_data.message = "Missing token";
-         return res.send(functionsObj.output(0, return_data.message));;
+         res.send(functionsObj.output(0, return_data.message));
+         return;
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
 
       if (!decoded || typeof decoded !== "object" || !decoded.id) {
          return_data.message = "Invalid token";
-         return res.send(functionsObj.output(0, return_data.message));
+          res.send(functionsObj.output(0, return_data.message));
+          return;
       }
 
       const user = await dpartnerObj.finddpartnerById(decoded.id);
-      // console.log("user",user)
       if (!user) {
        return_data.message = "User not found";
-       return res.send(functionsObj.output(0, return_data.message));
+        res.send(functionsObj.output(0, return_data.message));
+        return;
       }
 
-      (req as any).user = user.data;
-      // console.log("Authenticated Delivery Partner:", req.user);
+     req.body.user = user.data;
       next();
+      return;
     } catch (error) {
       console.error("Token verification error:", error);
       return_data.message = "Unauthorized";
-      return res.send(functionsObj.output(0, return_data.message));
+       res.send(functionsObj.output(0, return_data.message));
+       return;
     }
   }
 
 
-let customerRoute= require("./controller/customercontroller")
-app.use("/v1/customer",customerRoute)
-
-let cityRoute=require('./controller/citycontroller');
-app.use("/v1/city",cityRoute)
-
-let vehicletypeRoute = require("./controller/vehicletypecontroller");
-app.use("/v1/vehicletypes", vehicletypeRoute);
-
-let dpartnersRoute = require("./controller/dpartnercontroller");
-app.use("/v1/dpartner", dpartnersRoute);
-
-let ordersRoute = require("./controller/ordercontroller");
-app.use("/v1/order", ordersRoute);
+app.use("/v1/customer",require("./controller/customercontroller"))
+app.use("/v1/city",require('./controller/citycontroller'))
+app.use("/v1/vehicletypes", require("./controller/vehicletypecontroller"));
+app.use("/v1/dpartner", require("./controller/dpartnercontroller"));
+app.use("/v1/order", require("./controller/ordercontroller"));
 
 module.exports  = app;
 

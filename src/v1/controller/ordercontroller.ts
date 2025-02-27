@@ -11,6 +11,7 @@ import { dbDpartners } from "../model/dpartnersmodel";
 import requestIp from 'request-ip';
 import { io } from "../../app";
 import { MailService } from "../library/sendMail";
+import { generateOTP } from "../library/generateOTP";
 
 const router = express.Router();
 let functionsObj = new functions();
@@ -123,13 +124,13 @@ function orderSchema(req: any, res: any, next: any) {
 // Place Order Controller
 async function placeOrder(req: any, res: any, next: any) {
   try {
-    const { id } = req.user; // Assuming the user is authenticated and user data is in req.user.data
+    const { id } = req.body.user; // Assuming the user is authenticated and user data is in req.body.user.data
     const { vehicletype, pickup, drop, order_charge } = req.body;
-    if(!req.user.id){
+    if(!req.body.user.id){
        return res.send(
          functionsObj.output(
            0,
-          req.user.message || "user not found."
+          req.body.user.message || "user not found."
          )
        );
     }
@@ -232,7 +233,7 @@ next();
   async function acceptOrder(req: any, res: any) {
     try {
       const { orderId } = req.body;
-      const dpartnerId = req.user.id;
+      const dpartnerId = req.body.user.id;
 
       // Fetch order details to get cust_id
       const orderResponse:any = await orderObj.getOrderById(orderId);
@@ -260,8 +261,8 @@ next();
    return res.send(functionsObj.output(0, assigndpartner.message));
  }
 
-      // generaye otp
-      const generateOTP = require("../library/generateOTP");
+   
+    
       let otp: number = generateOTP();
       let otpExpiryTime: string | null = new Date(Date.now() + 60 * 60000)
         .toISOString()
@@ -278,7 +279,7 @@ next();
       await mailService.sendOrderOTPMail(orderId, customerEmail, otp);
 
       // 🔔 Notify customer
-      const customerSocketId:any = await orderObj.getCustomerSocketId(
+      const customerSocketId:any = await customerObj.getCustomerSocketId(
         order.cust_id
       );
 
@@ -310,7 +311,7 @@ next();
       const verifyorder: any = await orderObj.updateOrderStatus(
         orderId,
         "pickup",
-        req.user.id
+        req.body.user.id
       );
       if (verifyorder.error) {
         return res.send(
@@ -318,7 +319,7 @@ next();
         );
       }
       // 🔔 Notify customer
-      // const customerSocketId :any= await orderObj.getCustomerSocketId(
+      // const customerSocketId :any= await customerObj.getCustomerSocketId(
       //   order.customer_id
       // );
       // if (customerSocketId.data.id) {
@@ -339,7 +340,7 @@ next();
     try {
       // const { }=req.params
       const {orderId, status } = req.body;
-      const dpartnerId = req.user.id;
+      const dpartnerId = req.body.user.id;
 
       const updateResponse: any = await orderObj.updateOrderStatus(
         orderId,
@@ -356,7 +357,7 @@ next();
         const order:any = await orderObj.getOrderById(orderId);
 
       // 🔔 Notify customer
-      const customerSocketId: any = await orderObj.getCustomerSocketId(
+      const customerSocketId: any = await customerObj.getCustomerSocketId(
         order.data.cust_id
       );
       if (customerSocketId.data.id) {
@@ -377,12 +378,12 @@ next();
   async function getOrders(req: any, res: any,next:any) {
    
      try {
-       if (!req.user) {
+       if (!req.body.user) {
          return res.send(
            functionsObj.output(0, "Unauthorized: No user data found")
          );
        }
- const customerId = req.user.id;
+ const customerId = req.body.user.id;
        
        const result = await orderObj.getCustomerOrders(customerId);
        // console.log("Fetched user:", user);
