@@ -13,14 +13,10 @@ export class dbVehicleType extends appdb {
       message: "",
       data: {},
     };
-
-    const checkResult = await this.select(
-      this.table,
-      "*",
-      `WHERE vehicletype_type = '${vehicleType}' AND is_deleted = FALSE`,
-      "",
-      ""
-    );
+     this.where=`WHERE vehicletype_type = '${vehicleType}' AND is_deleted = FALSE`
+    const checkResult = await this.allRecords("*");
+     
+   
 
     if (checkResult.length > 0) {
       return_data.message = "Vehicle type already exists";
