@@ -1,136 +1,115 @@
 import express from "express";
 import cors from "cors";
-import { Request ,Response,NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import { dbcustomers } from "./model/customermodel";
 import { functions } from "./library/functions";
-import  jwt  from "jsonwebtoken";
-// import bodyParser from "body-parser";
+import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { dbDpartners } from "./model/dpartnersmodel";
-import { CustomRequestHandler } from "./types/CustomRequestHandler";
-// import orderRoutes from "./orderRoutes.js";
-// import cityRoutes from "./cityRoutes.js";
-// import vehicleTypeRoutes from "./vehicleTypeRoutes.js";
-// import customerRoute from "./controller/customercontroller";
-// import deliveryPartnerRoutes from "./deliveryPartnerRoutes.js";
-// import { dbDpartners } from './model/dpartnersmodel';
-let  app = express();
+
+
+let app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 
-var customersObj=new  dbcustomers();
-var functionsObj = new functions();
-var dpartnerObj= new dbDpartners();
-
- /**
-//    * Authenticate customer Middleware
-//    * @param req Express Request
-//    * @param res Express Response
-//    * @param next Express NextFunction
-//    */
-
-export async function  authenticateCustomer (req: Request, res: Response, next: NextFunction){
-    let return_data = {
-      error: true,
-      message: "",
-      data: {},
-    };
-
-    try {
-      const token =
-        req.cookies.token || req.headers.authorization?.split(" ")[1];
-
-      if (!token) {
-        return_data.message = "Missing token";
-         res.send(functionsObj.output(0, return_data.message));
-         return
-
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-
-      if (!decoded || typeof decoded !== "object" || !decoded.id) {
-        return_data.message = "Invalid token";
-       res.send(functionsObj.output(0, return_data.message));
-       return
-      }
-
-      const user = await customersObj.findUserById(decoded.id);
+var customersObj = new dbcustomers();
+var dpartnerObj = new dbDpartners();
 
 
-      if (!user) {
-        return_data.message = "User not found";
-          res.send(functionsObj.output(0, return_data.message));
-          return
-      }
+export async function authenticateCustomer(req: Request, res: Response, next: NextFunction) {
+  let return_data = {
+    error: true,
+    message: "",
+    data: {},
+  };
 
-       req.body.user = user.data;
-     next();
-    } catch (error) {
-      console.error("Token verification error:", error);
-      return_data.message = "Unauthorized";
-       res.send(functionsObj.output(0, return_data.message));
-       return
-    }
-  }
+  const functionsObj = new functions();
 
-//   /**
-//    * Authenticate Delivery Partner Middleware
-//    * @param req Express Request
-//    * @param res Express Response
-//    * @param next Express NextFunction
-//    */
-export async function  dpartnerAuthenticate(req: Request,res: Response, next: NextFunction) {
-    let return_data = {
-      error: true,
-      message: "",
-      data: {},
-    };
+  try {
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
-    try {
-      const token =
-        req.cookies.token || req.headers.authorization?.split(" ")[1];
-
-      if (!token) {
-         return_data.message = "Missing token";
-         res.send(functionsObj.output(0, return_data.message));
-         return;
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-
-      if (!decoded || typeof decoded !== "object" || !decoded.id) {
-         return_data.message = "Invalid token";
-          res.send(functionsObj.output(0, return_data.message));
-          return;
-      }
-
-      const user = await dpartnerObj.finddpartnerById(decoded.id);
-      if (!user) {
-       return_data.message = "User not found";
-        res.send(functionsObj.output(0, return_data.message));
-        return;
-      }
-
-     req.body.user = user.data;
-      next();
+    if (!token) {
+      return_data.message = "Missing token";
+      res.send(functionsObj.output(0, return_data.message));
       return;
-    } catch (error) {
-      console.error("Token verification error:", error);
-      return_data.message = "Unauthorized";
-       res.send(functionsObj.output(0, return_data.message));
-       return;
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+
+    if (!decoded || typeof decoded !== "object" || !decoded.id) {
+      return_data.message = "Invalid token";
+      res.send(functionsObj.output(0, return_data.message));
+      return;
+    }
+
+    const user = await customersObj.findUserById(decoded.id);
+
+    if (!user) {
+      return_data.message = "User not found";
+      res.send(functionsObj.output(0, return_data.message));
+      return;
+    }
+
+    req.body.user = user.data;
+    next();
+  } catch (error) {
+    console.error("Token verification error:", error);
+    return_data.message = "Unauthorized";
+    res.send(functionsObj.output(0, return_data.message));
+    return;
   }
+}
 
 
-app.use("/v1/customer",require("./controller/customercontroller"))
-app.use("/v1/city",require('./controller/citycontroller'))
+export async function dpartnerAuthenticate(req: Request, res: Response, next: NextFunction) {
+  let return_data = {
+    error: true,
+    message: "",
+    data: {},
+  };
+
+  const functionsObj = new functions();
+
+  try {
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return_data.message = "Missing token";
+      res.send(functionsObj.output(0, return_data.message));
+      return;
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+
+    if (!decoded || typeof decoded !== "object" || !decoded.id) {
+      return_data.message = "Invalid token";
+      res.send(functionsObj.output(0, return_data.message));
+      return;
+    }
+
+    const user = await dpartnerObj.finddpartnerById(decoded.id);
+    if (!user) {
+      return_data.message = "User not found";
+      res.send(functionsObj.output(0, return_data.message));
+      return;
+    }
+
+    req.body.user = user.data;
+    next();
+  } catch (error) {
+    console.error("Token verification error:", error);
+    return_data.message = "Unauthorized";
+    res.send(functionsObj.output(0, return_data.message));
+    return;
+  }
+}
+
+app.use("/v1/customer", require("./controller/customercontroller"));
+app.use("/v1/city", require('./controller/citycontroller'));
 app.use("/v1/vehicletypes", require("./controller/vehicletypecontroller"));
 app.use("/v1/dpartner", require("./controller/dpartnercontroller"));
 app.use("/v1/order", require("./controller/ordercontroller"));
 
-module.exports  = app;
-
+module.exports = app;

@@ -1,25 +1,24 @@
-import  express ,{ Request ,Response,NextFunction} from 'express';
-import requestIp from 'request-ip'
+import express, { Request, Response, NextFunction } from 'express';
+import requestIp from 'request-ip';
 import { dbCity } from '../model/citymodel';
 import { functions } from '../library/functions';
 import Joi from 'joi';
 import { validations } from '../library/validations';
-import { error } from 'console';
-const router =express.Router();
 
-router.post("/create",cityValidation,createCityController)
-router.put("/update", idValidation,cityValidation, updateCityController);
-router.put("/delete", idValidation,deleteCityController);
-router.get("/city",idValidation,  getCityByIdController);
+const router = express.Router();
+
+router.post("/create", cityValidation, createCityController);
+router.put("/update", idValidation, cityValidation, updateCityController);
+router.put("/delete", idValidation, deleteCityController);
+router.get("/city", idValidation, getCityByIdController);
 router.get("/cities", getAllCitiesController);
 module.exports = router;
 
-var cityObj=new dbCity();
-var functionsObj=new functions();
-var  validationsObj = new validations();
+var cityObj = new dbCity();
 
 // city schema
-function cityValidation(req: any, res: any, next: any) {
+function cityValidation(req: Request, res: Response, next: NextFunction) {
+  const validationsObj = new validations();
   const schema = Joi.object({
     city: Joi.string().min(2).max(50).trim().required().messages({
       "string.empty": "City name is required.",
@@ -33,35 +32,38 @@ function cityValidation(req: any, res: any, next: any) {
     }),
   });
 
-    if (!validationsObj.validateRequest(req, res, next, schema)) {
-      return;
-    }
-  
-    next();
-}
-//create city
+  if (!validationsObj.validateRequest(req, res, next, schema)) {
+    return;
+  }
 
-async function createCityController(req: any, res: any, next: any){
+  next();
+}
+
+// create city
+async function createCityController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
   try {
     const { city, state } = req.body;
     const createdIp = requestIp.getClientIp(req) || "";
 
-    const cities :any = await cityObj.insertCity(city, state, createdIp);
+    const cities: any = await cityObj.insertCity(city, state, createdIp);
 
     if (cities.error) {
-       return res.send(functionsObj.output(0, cities.message));
+      res.send(functionsObj.output(0, "CITY_INSERT_ERROR", cities.message));
+      return;
     }
 
-    return res.send(functionsObj.output(0, cities.message,cities.data));
+    res.send(functionsObj.output(0, "CITY_INSERT_SUCCESS", cities.data));
+    return;
   } catch (error: any) {
-    console.error("Error creating city:", error);
-
-   return res.send(functionsObj.output(0, "Internal server error",error));
+    res.send(functionsObj.output(0, "CITY_INSERT_ERROR", error));
+    return;
   }
-};
+}
 
-// id validtaion
-function idValidation(req: any, res: any, next: any) {
+// id validation
+function idValidation(req: Request, res: Response, next: NextFunction) {
+  const validationsObj = new validations();
   const schema = Joi.object({
     id: Joi.number().integer().min(1).required().messages({
       "number.base": "City ID must be a number",
@@ -71,85 +73,94 @@ function idValidation(req: any, res: any, next: any) {
     }),
   });
 
-    if (!validationsObj.validateRequest(req, res, next, schema)) {
-      return;
-    }
-  
-    next();
+  if (!validationsObj.validateRequest(req, res, next, schema)) {
+    return;
+  }
+
+  next();
 }
+
 // Get City by ID
-async function getCityByIdController(req: any, res: any, next: any) {
+async function getCityByIdController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
   try {
     const { id } = req.body;
 
-  
     const city: any = await cityObj.getCityById(id);
 
     if (city.error) {
-      return res.send(functionsObj.output(0, "City not found"));
+      res.send(functionsObj.output(0, "CITY_NOT_FOUND"));
+      return;
     }
 
-    return res.send(functionsObj.output(1, "City found", city.data));
+    res.send(functionsObj.output(1, "CITY_FETCH_SUCCESS", city.data));
+    return;
   } catch (error: any) {
-    console.error("Error fetching city:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+   
+    res.send(functionsObj.output(0, "CITY_FETCH_ERROR", error));
+    return;
   }
 }
 
 // Get all Cities
-async function getAllCitiesController(req: any, res: any, next: any) {
+
+async function getAllCitiesController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
   try {
     const cities: any = await cityObj.getAllCity();
 
     if (cities.error) {
-      return res.send(functionsObj.output(0, "No cities found"));
+      res.send(functionsObj.output(0, "CITIES_FETCH_ERROR"));
+      return;
     }
 
-    return res.send(functionsObj.output(1, "Cities retrieved successfully", cities.data));
+    res.send(functionsObj.output(1, "CITIES_FETCH_SUCCESS", cities.data));
+    return;
   } catch (error: any) {
-    console.error("Error fetching all cities:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    res.send(functionsObj.output(0, "CITIES_FETCH_ERROR", error));
+    return;
   }
 }
 
-
 // Update City
-async function updateCityController(req: any, res: any, next: any) {
+
+
+async function updateCityController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
   try {
-    
-    const {id, city, state } = req.body;
+    const { id, city, state } = req.body;
 
-    const updatedCity: any = await cityObj.updateCity(id, city, state);
+    let updatedCity :any= await cityObj.updateCity(id, city, state);
 
-    if (!updatedCity.error) {
-      return res.send(functionsObj.output(0, updatedCity.message));
+    if (updatedCity.error) {
+      res.send(functionsObj.output(0, "CITY_UPDATE_ERROR"));
+      return;
     }
 
-    return res.send(functionsObj.output(1, updatedCity.message, updatedCity.data));
+    res.send(functionsObj.output(1,"CITY_UPDATE_SUCCESS", updatedCity.data));
+    return;
   } catch (error: any) {
-    console.error("Error updating city:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    res.send(functionsObj.output(0, "CITY_UPDATE_ERROR", error));
+    return;
   }
 }
 
 // Delete City
-
-
-async function deleteCityController(req: any, res: any, next: any) {
+async function deleteCityController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
   try {
     const { id } = req.body;
-
-   
-
     const deletedCity: any = await cityObj.deleteCity(id);
 
     if (!deletedCity) {
-      return res.send(functionsObj.output(0, "City not found"));
+      res.send(functionsObj.output(0, "CITY_DELETE_ERROR"));
+      return;
     }
 
-    return res.send(functionsObj.output(1, "City deleted successfully",deletedCity.data));
+    res.send(functionsObj.output(1, "CITY_DELETE_SUCCESS", deletedCity.data));
+    return;
   } catch (error: any) {
-    console.error("Error deleting city:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    res.send(functionsObj.output(0, "CITY_DELETE_ERROR", error));
+    return;
   }
 }

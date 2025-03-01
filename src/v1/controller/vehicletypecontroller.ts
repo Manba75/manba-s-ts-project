@@ -7,20 +7,16 @@ import { validations } from "../library/validations";
 
 const router = express.Router();
 
-var vehicleTypeObj = new dbVehicleType();
-var functionsObj = new functions();
-var validationsObj = new validations();
-
 router.post("/create", vehicleTypeValidation, createVehicleTypeController);
-router.get("/vehicletype/:id", getVehicleTypeByIdController);
+router.get("/vehicletype",idValidation, getVehicleTypeByIdController);
 router.get("/vehicletypes", getAllVehicleTypesController);
-router.put("/update/:id", vehicleTypeValidation, updateVehicleTypeController);
-router.put("/delete/:id", deleteVehicleTypeController);
+router.put("/update", vehicleTypeValidation,idValidation,updateVehicleTypeController);
+router.put("/delete", deleteVehicleTypeController);
 
 module.exports = router;
 
 // Vehicle Type schema validation
-function vehicleTypeValidation(req: any, res: any, next: any) {
+function vehicleTypeValidation(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
     vehicletype: Joi.string().min(2).trim().max(50).required().messages({
       "string.empty": "Vehicle type is required.",
@@ -34,6 +30,7 @@ function vehicleTypeValidation(req: any, res: any, next: any) {
     }),
   });
 
+  const validationsObj = new validations();
   if (!validationsObj.validateRequest(req, res, next, schema)) {
     return;
   }
@@ -42,121 +39,132 @@ function vehicleTypeValidation(req: any, res: any, next: any) {
 }
 
 // Create Vehicle Type
-async function createVehicleTypeController(req: any, res: any, next: any) {
+async function createVehicleTypeController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
+  const vehicleTypeObj = new dbVehicleType();
   try {
     const { vehicletype, max_weight } = req.body;
     const createdIp = requestIp.getClientIp(req) || "";
 
-    const vehicleType: any = await vehicleTypeObj.insertVehicleType(
-      vehicletype,
-      max_weight,
-      createdIp
-    );
+    const vehicleType: any = await vehicleTypeObj.insertVehicleType(vehicletype, max_weight, createdIp);
 
     if (!vehicleType.error) {
-      return res.send(functionsObj.output(0, vehicleType.message));
+      res.send(functionsObj.output(0, "VEHICLE_TYPE_INSERT_ERROR", vehicleType.message));
+      return;
     }
 
-    return res.send(
-      functionsObj.output(1, vehicleType.message, vehicleType.data)
-    );
+    res.send(functionsObj.output(1, "VEHICLE_TYPE_INSERT_SUCCESS", vehicleType.data));
+    return;
   } catch (error: any) {
-    console.error("Error creating vehicle type:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    res.send(functionsObj.output(0, "VEHICLE_TYPE_INSERT_ERROR", error));
+    return;
   }
 }
 
+// id validation
+function idValidation(req: Request, res: Response, next: NextFunction) {
+  const validationsObj = new validations();
+  const schema = Joi.object({
+    id: Joi.number().integer().min(1).required().messages({
+      "number.base": "City ID must be a number",
+      "number.integer": "City ID must be an integer",
+      "number.min": "City ID must be greater than 0",
+      "any.required": "City ID is required"
+    }),
+  });
+
+  if (!validationsObj.validateRequest(req, res, next, schema)) {
+    return;
+  }
+
+  next();
+}
 // Get Vehicle Type by ID
-async function getVehicleTypeByIdController(req: any, res: any, next: any) {
+async function getVehicleTypeByIdController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
+  const vehicleTypeObj = new dbVehicleType();
   try {
-    const { id } = req.params;
-    if (!id || id === "0") {
-      return res.send(functionsObj.output(0, "vehicletype ID is required"));
-    }
+    const { id } = req.body;
 
     const vehicleType: any = await vehicleTypeObj.getVehicleTypeById(id);
 
     if (!vehicleType) {
-      return res.send(functionsObj.output(0, vehicleType.message));
+      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      return;
     }
 
-    return res.send(
-      functionsObj.output(1, vehicleType.message, vehicleType.data)
-    );
+    res.send(functionsObj.output(1, "VEHICLE_TYPE_FETCH_SUCCESS", vehicleType.data));
+    return;
   } catch (error: any) {
-    console.error("Error fetching vehicle type:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    res.send(functionsObj.output(0, "VEHICLE_TYPE_FETCH_ERROR", error));
+    return;
   }
 }
 
 // Get all Vehicle Types
-async function getAllVehicleTypesController(req: any, res: any, next: any) {
+async function getAllVehicleTypesController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
+  const vehicleTypeObj = new dbVehicleType();
   try {
     const vehicleTypes: any = await vehicleTypeObj.getAllVehicleTypes();
 
     if (vehicleTypes.error || vehicleTypes.length === 0) {
-      return res.send(functionsObj.output(0, vehicleTypes.message));
+      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      return;
     }
 
-    return res.send(
-      functionsObj.output(1, vehicleTypes.message, vehicleTypes.data)
-    );
+    res.send(functionsObj.output(1, "VEHICLE_TYPES_FETCH_SUCCESS", vehicleTypes.data));
+    return;
   } catch (error: any) {
-    console.error("Error fetching all vehicle types:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+   
+    res.send(functionsObj.output(0, "VEHICLE_TYPES_FETCH_ERROR", error));
+    return;
   }
 }
 
 // Update Vehicle Type
-async function updateVehicleTypeController(req: any, res: any, next: any) {
+async function updateVehicleTypeController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
+  const vehicleTypeObj = new dbVehicleType();
   try {
-    const { id } = req.params;
-    if (!id || id === "0") {
-      return res.send(functionsObj.output(0, "vehicletype ID is required"));
-    }
+   
 
-    const { vehicletype, max_weight } = req.body;
+    const { id,vehicletype, max_weight } = req.body;
 
-    const updatedVehicleType: any = await vehicleTypeObj.updateVehicleType(
-      id,
-      vehicletype,
-      max_weight
-    );
+    const updatedVehicleType: any = await vehicleTypeObj.updateVehicleType(id, vehicletype, max_weight);
 
     if (updatedVehicleType.error) {
-      return res.send(functionsObj.output(0, updatedVehicleType.message));
+      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      return;
     }
 
-    return res.send(
-      functionsObj.output(
-        1,
-        updatedVehicleType.message,
-        updatedVehicleType.data
-      )
-    );
+    res.send(functionsObj.output(1, "VEHICLE_TYPE_UPDATE_SUCCESS", updatedVehicleType.data));
+    return;
   } catch (error: any) {
-    console.error("Error updating vehicle type:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    
+    res.send(functionsObj.output(0, "VEHICLE_TYPE_UPDATE_ERROR", error));
+    return;
   }
 }
 
 // Delete Vehicle Type
-async function deleteVehicleTypeController(req: any, res: any, next: any) {
+async function deleteVehicleTypeController(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
+  const vehicleTypeObj = new dbVehicleType();
   try {
-    const { id } = req.params;
-    if (!id || id === "0") {
-      return res.send(functionsObj.output(0, "vehicletype ID is required"));
-    }
+    const { id } = req.body;
 
     const deletedVehicleType: any = await vehicleTypeObj.deleteVehicleType(id);
 
     if (deletedVehicleType.error) {
-      return res.send(functionsObj.output(0, deletedVehicleType.message));
+      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      return;
     }
 
-    return res.send(functionsObj.output(1, deletedVehicleType.message));
+    res.send(functionsObj.output(1, "VEHICLE_TYPE_DELETE_SUCCESS",deletedVehicleType.data));
+    return;
   } catch (error: any) {
-    console.error("Error deleting vehicle type:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    res.send(functionsObj.output(0, "VEHICLE_TYPE_DELETE_ERROR", error));
+    return;
   }
 }

@@ -52,7 +52,7 @@ async createCustomer(email: string,password: string, otp: number,createdIP: stri
         return return_data;
       }
 
-      // If user does not exist, create a new one
+     
       let insertData = {
         cust_email: email,
         cust_password: password,
@@ -76,7 +76,7 @@ async createCustomer(email: string,password: string, otp: number,createdIP: stri
       return_data.message = "Successfully created user";
       return return_data;
     } catch (error) {
-      console.error("Database Insert Error:", error); // Debugging log
+      console.error("Database Insert Error:", error); 
       return_data.error = true;
       return_data.message = "Error inserting record into database";
       return return_data;
@@ -92,18 +92,18 @@ async verifyUserOTP(email: string, otp: number | null) {
     };
 
     try {
-      // Fetch user details using email
+      
       this.where = `WHERE cust_email = '${email}' AND is_deleted = false`;
       let existingUser: any[] = await this.allRecords("*");
 
       if (existingUser.length === 0) {
-        return_data.message = "User not found.";
+        return_data.message = "CUSTOMER_NOT_FOUND";
         return return_data;
       }
 
       let user = existingUser[0];
       if (user.cust_verifyotp !== otp) {
-        return_data.message = "Invalid OTP.";
+        return_data.message = "OTP_INVALID";
         return return_data;
       }
 
@@ -122,7 +122,7 @@ async verifyUserOTP(email: string, otp: number | null) {
 
       let updateResult = await this.updateRecord(user.id, updateData);
       if (!updateResult) {
-        return_data.message = "Error updating user verification status.";
+        return_data.message = "OTP_VERIFY_ERROR";
         return return_data;
       }
 
@@ -131,9 +131,9 @@ async verifyUserOTP(email: string, otp: number | null) {
       return_data.data = updateResult;
       return return_data;
     } catch (error) {
-      console.error("Error verifying OTP:", error);
+    
       return_data.error = true;
-      return_data.message = "Error verifying OTP.";
+      return_data.message = "OTP_VERIFY_ERROR";
       return return_data;
     }
   }
@@ -413,7 +413,7 @@ async getAllUser() {
     let return_data = {
       error: true,
       message: "",
-      data: {} as any,
+      data: 0,
     };
 
     try {
@@ -431,7 +431,7 @@ async getAllUser() {
 
       return_data.error = false;
       return_data.message = "User deleted successfully.";
-      return_data.data = updateData; 
+      return_data.data = userResult; 
       return return_data;
     } catch (error) {
       console.error("Database Fetch Error:", error);

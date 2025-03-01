@@ -1,6 +1,5 @@
 import { functions } from "../library/functions";
 import { validations } from "../library/validations";
-import { dbcustomers } from "../model/customermodel";
 import express, { NextFunction, Request, Response } from "express";
 import Joi from "joi";
 import requestIp from "request-ip";
@@ -8,7 +7,7 @@ import bcrypt from "bcrypt";
 import { MailService } from "../library/sendMail";
 import { generateTokenAndSetCookies } from "../library/generateTokenAndSetCookies";
 import jwt from "jsonwebtoken";
-import { dpartnerAuthenticate  } from "../../v1/index";
+import { dpartnerAuthenticate } from "../../v1/index";
 import { dbDpartners } from "../model/dpartnersmodel";
 import { dbCity } from "../model/citymodel";
 import { dbVehicleType } from "../model/vehicletypemodel";
@@ -24,98 +23,51 @@ router.post("/forgot-password", emailSchema, forgotPassword);
 router.post("/reset-password", resetPasswordSchema, resetPassword);
 router.get("/get-dpartners", getAlldpartners);
 router.get("/get-profile/:id", dpartnerAuthenticate, getOnedpartner);
-router.put("/update-profile", dpartnerAuthenticate ,updateProfileSchema ,updatedpartnerProfile);
+router.put("/update-profile", dpartnerAuthenticate, updateProfileSchema, updatedpartnerProfile);
 router.post("/check-email", emailSchema, checkEmail);
 router.put("/delete-profile/:id", dpartnerAuthenticate, deletedpartner);
-router.put( "/isAvailable",dpartnerAuthenticate,AvailabilitySchema,dpartnerIsAvailable);
+router.put("/isAvailable", dpartnerAuthenticate, AvailabilitySchema, dpartnerIsAvailable);
 
 module.exports = router;
 
-var dpartnerObj = new dbDpartners();
-var functionsObj = new functions();
-let mailService = new MailService();
-var cityObj = new dbCity();
-var vehicletypeObj = new dbVehicleType();
-
-// signup schema validation
-function signupSchema(req: any, res: any, next: any) {
+function signupSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    dpartner_email: Joi.string()
-      .trim()
-      .email({
-        minDomainSegments: 2,
-        tlds: { allow: ["com", "net"] },
-      })
-      .lowercase()
-      .required()
-      .trim()
-      .replace(/'/g, "")
-      .messages({
-        // "email.base": "Invalid the email format",
-        "string.empty": "email must be required",
-        "string.email": "Invalid email format",
-      }),
-    dpartner_pass: Joi.string()
-      .trim()
-      .pattern(
-        new RegExp(
-          "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$"
-        )
-      )
-      .required()
-      .replace(/'/g, "")
-      .messages({
-        "string.base": "Password must be a string",
-        "string.empty": "Password is required",
-        "string.pattern.base":
-          "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.",
-      }),
-    city: Joi.string()
-      .min(3)
-      .max(50)
-      .required()
-      .trim()
-      .replace(/'/g, "")
-      .messages({
-        "string.base": "City name should be a string",
-        "string.empty": "City name is required",
-        "string.min": "City name should be at least 3 characters long",
-        "string.max": "City name should not be longer than 50 characters",
-      }),
-    dpartner_licence: Joi.string()
-      .alphanum()
-      .min(10)
-      .max(15)
-      .required()
-      .trim()
-      .replace(/'/g, "")
-      .messages({
-        "string.base": "License number should be a string",
-        "string.empty": "License number is required",
-        "string.alphanum": "License number must be alphanumeric",
-        "string.min": "License number should be at least 10 characters long",
-        "string.max": "License number should not exceed 15 characters",
-      }),
-    vehicle_name: Joi.string().trim().replace(/'/g, "").messages({
+    dpartner_email: Joi.string().trim().email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } }).lowercase().required().trim().replace(/'/g, "").messages({
+      "string.empty": "email must be required",
+      "string.email": "Invalid email format"
+    }),
+    dpartner_pass: Joi.string().trim().pattern(new RegExp("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().replace(/'/g, "").messages({
+      "string.base": "Password must be a string",
+      "string.empty": "Password is required",
+      "string.pattern.base": "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
+    }),
+    city: Joi.string().min(3).max(50).required().trim().replace(/'/g, "").messages({
+      "string.base": "City name should be a string",
+      "string.empty": "City name is required",
+      "string.min": "City name should be at least 3 characters long",
+      "string.max": "City name should not be longer than 50 characters"
+    }),
+    dpartner_licence: Joi.string().alphanum().min(10).max(15).required().trim().replace(/'/g, "").messages({
+      "string.base": "License number should be a string",
       "string.empty": "License number is required",
+      "string.alphanum": "License number must be alphanumeric",
+      "string.min": "License number should be at least 10 characters long",
+      "string.max": "License number should not exceed 15 characters"
+    }),
+    vehicle_name: Joi.string().trim().replace(/'/g, "").messages({
+      "string.empty": "License number is required"
     }),
     vehicletype: Joi.string().messages({
-      "string.empty": "vehicle type mustbe required",
+      "string.empty": "vehicle type must be required"
     }),
     vehicle_number: Joi.string().trim().replace(/'/g, "").messages({
-      "string.empty": "License number is required",
+      "string.empty": "License number is required"
     }),
-    dpartner_phone: Joi.string()
-      .replace(/'/g, "")
-      .trim()
-      .length(10)
-      .pattern(/^[0-9]+$/)
-      .required()
-      .messages({
-        "string.empty": "Phone number is required",
-        "string.length": "Phone number must be exactly 10 digits",
-        "string.pattern.base": "Phone number must only contain numbers",
-      }),
+    dpartner_phone: Joi.string().replace(/'/g, "").trim().length(10).pattern(/^[0-9]+$/).required().messages({
+      "string.empty": "Phone number is required",
+      "string.length": "Phone number must be exactly 10 digits",
+      "string.pattern.base": "Phone number must only contain numbers"
+    }),
   });
 
   let validationsObj = new validations();
@@ -125,66 +77,64 @@ function signupSchema(req: any, res: any, next: any) {
 
   next();
 }
-// signup controller
-async function signup(req: any, res: any, next: any) {
+
+async function signup(req: Request, res: Response, next: NextFunction) {
   try {
-    const {
-      city, 
-      vehicletype, 
-      dpartner_email,
-      dpartner_pass,
-      dpartner_licence,
-      dpartner_phone,
-      vehicle_number,
-      vehicle_name,
-    } = req.body;
-
+    const { city, vehicletype, dpartner_email, dpartner_pass, dpartner_licence, dpartner_phone, vehicle_number, vehicle_name } = req.body;
     const createdip: string | null = requestIp.getClientIp(req) || "";
-
-    
     const otp: number = generateOTP();
     const hashpassword: string = await bcrypt.hash(dpartner_pass, 10);
+    let cityObj = new dbCity();
+    let vehicletypeObj = new dbVehicleType();
+    let dpartnerObj = new dbDpartners();
+    let functionsObj = new functions();
+    let mailService = new MailService();
 
     let city_id: any = await cityObj.getCityIdByCityName(city);
- 
     if (city_id.error) {
-      return res.send(functionsObj.output(0, city_id.message));
+      res.send(functionsObj.output(0, "CITY_NOT_FOUND"));
+      return;
     }
+
     let vehicleType_id: any = await vehicletypeObj.getVehicleTypeIdByName(vehicletype);
-   
     if (vehicleType_id.error) {
-      return res.send(functionsObj.output(0, vehicleType_id.message));
+      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      return;
     }
 
-    let newdpartner: any = await dpartnerObj.insertDpartner(city_id.data, vehicleType_id.data.id, dpartner_email, hashpassword, createdip,dpartner_licence, dpartner_phone, vehicle_number,vehicle_name, otp);
- 
+    let newdpartner: any = await dpartnerObj.insertDpartner(city_id.data, vehicleType_id.data.id, dpartner_email, hashpassword, createdip, dpartner_licence, dpartner_phone, vehicle_number, vehicle_name, otp);
     if (newdpartner.error) {
-      return res.send(functionsObj.output(0, newdpartner.message));
-    } 
-     
+      res.send(functionsObj.output(0, "DPARTNER_INSERT_ERROR"));
+      return;
+    }
 
-  await mailService.sendOTPMail(dpartner_email, otp);
+    await mailService.sendOTPMail(dpartner_email, otp);
+    const token: string | null = generateTokenAndSetCookies(res, newdpartner.data.id);
+    if (!token) {
+      res.send(functionsObj.output(0, "TOKEN_ERROR"));
+      return;
+    }
 
-  const token: string | null = generateTokenAndSetCookies(res,newdpartner.data.id);
-  if (!token) {
-    return res.send(functionsObj.output(0, "Generating token error"));
-  }
-
-  return res.send(functionsObj.output(1, newdpartner.message, newdpartner.data));
-  
+    res.send(functionsObj.output(1, "DPARTNER_INSERT_SUCCESS", newdpartner.data));
+    return;
   } catch (error: any) {
-    console.log("err", error);
     next(error);
+    return;
   }
 }
 
-
-//verification schema
-function verifyOTPSchema(req: any, res: any, next: any) {
+function verifyOTPSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    email: Joi.string().email({minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({"string.empty": "Email is required.","string.email": "Invalid email format.", }),
-    
-    otp: Joi.number().integer().min(100000).max(999999).required().messages({"number.base": "OTP must be a number","number.min": "OTP must be a 6-digit number","number.max": "OTP must be a 6-digit number","any.required": "OTP is required",}),
+    email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } }).lowercase().trim().required().replace(/'/g, "").messages({
+      "string.empty": "Email is required.",
+      "string.email": "Invalid email format."
+    }),
+    otp: Joi.number().integer().min(100000).max(999999).required().messages({
+      "number.base": "OTP must be a number",
+      "number.min": "OTP must be a 6-digit number",
+      "number.max": "OTP must be a 6-digit number",
+      "any.required": "OTP is required"
+    }),
   });
 
   let validationsObj = new validations();
@@ -195,26 +145,30 @@ function verifyOTPSchema(req: any, res: any, next: any) {
   next();
 }
 
-// verifyotp controller
-async function verifydpartnerOTP(req: any, res: any, next: any) {
+async function verifydpartnerOTP(req: Request, res: Response, next: NextFunction) {
   try {
     const { email, otp } = req.body;
+    let dpartnerObj = new dbDpartners();
+    let functionsObj = new functions();
     const result = await dpartnerObj.verifydpartnerOTP(email, otp);
     if (result.error) {
-      return res.send(functionsObj.output(0, result.message));
-    } 
-   return res.send(functionsObj.output(1, result.message, result.data));
-    
+      res.send(functionsObj.output(0, "OTP_VERIFY_ERROR"));
+      return;
+    }
+    res.send(functionsObj.output(1, "USER_VERIFIED_SUCCESS", result.data));
+    return;
   } catch (error) {
-    console.error("Error in verifydpartnerOTPController:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    next(error);
+    return;
   }
 }
 
-//resend otp schema
-function resendOTPSchema(req: any, res: any, next: any) {
+function resendOTPSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    email: Joi.string().email({minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({"string.empty": "Email is required.", "string.email": "Invalid email format.", }),
+    email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } }).lowercase().trim().required().replace(/'/g, "").messages({
+      "string.empty": "Email is required.",
+      "string.email": "Invalid email format."
+    }),
   });
 
   let validationsObj = new validations();
@@ -225,39 +179,35 @@ function resendOTPSchema(req: any, res: any, next: any) {
   next();
 }
 
-// resendOTP controller
-async function resendOTPController(req: any, res: any, next: any) {
+async function resendOTPController(req: Request, res: Response, next: NextFunction) {
   try {
     let { email } = req.body;
-
+    let dpartnerObj = new dbDpartners();
+    let functionsObj = new functions();
     let result = await dpartnerObj.resendOTP(email);
     if (result.error) {
-      return res.send(functionsObj.output(0, result.message));
-    } 
-      
-return res.send(functionsObj.output(1, result.message, result.data));
-    
+      res.send(functionsObj.output(0, "OTP_RESEND_ERROR"));
+      return;
+    }
+    res.send(functionsObj.output(1, "OTP_RESEND_SUCCESS", result.data));
+    return;
   } catch (error) {
-    console.error("Error in verifydpartnerOTPController:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    next(error);
+    return;
   }
 }
 
-
-// login schema validation
-function loginSchema(req: any, res: any, next: any) {
+function loginSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    email: Joi.string().trim().email({minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().required().trim().replace(/'/g, "").messages({
-        "string.empty": "email must be required",
-        "string.email": "Invalid email format",
-      }),
-    password: Joi.string().trim().pattern(new RegExp( "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().replace(/'/g, "").messages({
-        "string.base": "Password must be a string",
-        "string.empty": "Password is required",
-        "string.pattern.base":"Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.",
-      }),
-   
-   
+    email: Joi.string().trim().email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } }).lowercase().required().trim().replace(/'/g, "").messages({
+      "string.empty": "email must be required",
+      "string.email": "Invalid email format"
+    }),
+    password: Joi.string().trim().pattern(new RegExp("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().replace(/'/g, "").messages({
+      "string.base": "Password must be a string",
+      "string.empty": "Password is required",
+      "string.pattern.base": "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
+    }),
   });
 
   let validationsObj = new validations();
@@ -267,98 +217,98 @@ function loginSchema(req: any, res: any, next: any) {
 
   next();
 }
-async function login(req: any, res: any, next: any) {
+
+async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const { email, password } = req.body;
-
+    let dpartnerObj = new dbDpartners();
+    let functionsObj = new functions();
     const dpartnerResponse: any = await dpartnerObj.finddpartnerByEmail(email);
-
     if (dpartnerResponse.error) {
-      return res.send(functionsObj.output(0, dpartnerResponse.message));
+      res.send(functionsObj.output(0, dpartnerResponse.message));
+      return;
     }
 
     const dpartner = dpartnerResponse.data;
-
     const isMatch = await bcrypt.compare(password, dpartner.dpartner_password);
     if (!isMatch) {
-      return res.send(functionsObj.output(0, "Email or password does not match")
-      );
+      res.send(functionsObj.output(0, "EMAIL_PASSWORD_MATCH_ERROR"));
+      return;
     }
 
     if (!dpartner.dpartner_isverify) {
-      return res.send(functionsObj.output(0, "Email is not verified"));
+      res.send(functionsObj.output(0, "EMAIL_VERIFIED_FAIL"));
+      return;
     }
 
-    const updateLastLoginResponse: any = await dpartnerObj.updateLastLogin(
-      email
-    );
+    const updateLastLoginResponse: any = await dpartnerObj.updateLastLogin(email);
     if (updateLastLoginResponse.error) {
-      return res.send(functionsObj.output(0, updateLastLoginResponse.message));
+      res.send(functionsObj.output(0, "DPARTNERS_LOGIN_FAIL"));
+      return;
     }
 
-    // Generate token
     const token = generateTokenAndSetCookies(res, dpartner.id);
     if (!token) {
-      return res.send(functionsObj.output(0, "Error in generating token"));
+      res.send(functionsObj.output(0, "TOKEN_ERROR"));
+      return;
     }
 
-    return res.send(functionsObj.output(1, dpartner.message, { token, dpartner }));
+    res.send(functionsObj.output(1,"DPARTNERS_LOGIN_SUCCESS", { token, dpartner }));
+    return;
   } catch (error) {
-    console.log("Error:", error);
     next(error);
+    return;
   }
 }
 
-// forgot password
-async function forgotPassword(req: any, res: any, next: any) {
+async function forgotPassword(req: Request, res: Response, next: NextFunction) {
   try {
     const { email } = req.body;
+    let dpartnerObj = new dbDpartners();
+    let functionsObj = new functions();
+    let mailService = new MailService();
     const dpartner: any = await dpartnerObj.finddpartnerByEmail(email);
-
     if (dpartner.error) {
-      return res.send(functionsObj.output(0, dpartner.message));
+      res.send(functionsObj.output(0, dpartner.message));
+      return;
     }
 
-    
-    const resetToken = jwt.sign({ reset: true } as object, process.env.JWT_SECRET as string, {expiresIn: "10m",});
-
+    const resetToken = jwt.sign({ reset: true } as object, process.env.JWT_SECRET as string, { expiresIn: "10m" });
     const resetTokenExpiry = new Date(Date.now() + 10 * 60000).toISOString().replace("T", " ").slice(0, -1);
-
-    const updateToken: any = await dpartnerObj.updateResetToken(email,resetToken,resetTokenExpiry);
-
+    const updateToken: any = await dpartnerObj.updateResetToken(email, resetToken, resetTokenExpiry);
     if (updateToken.error) {
-      return res.send(functionsObj.output(0, updateToken.message));
+      res.send(functionsObj.output(0, "FORGOT_PASSWORD_ERROR"));
+      return;
     }
 
     const resetLink = `http://localhost:8000/v1/dpartner/reset-password?token=${resetToken}&email=${email}`;
-
     await mailService.sendResetLink(email, resetLink);
-
-    return res.send(functionsObj.output(1, "Reset link sent to your email.", { resetLink }));
+    res.send(functionsObj.output(1, "FORGOT_PASSWORD_SUCCESS", { resetLink }));
+    return;
   } catch (error) {
-    console.error("Error in forgotPassword:", error);
     next(error);
+    return;
   }
 }
 
-// reset password schema
-function resetPasswordSchema(req: any, res: any, next: any) {
+function resetPasswordSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    email: Joi.string().email({ minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({
-        "string.empty": "Email is required",
-        "string.email": "Invalid email format",
-      }),
-
-    newPassword: Joi.string().pattern(new RegExp( "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$" ) ).required().trim().replace(/'/g, "") .messages({
-        "string.base": "Password must be a string",
-        "string.empty": "Password is required",
-        "string.pattern.base":
-          "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.",
-      }),
-
-    confirmPassword: Joi.string().required().valid(Joi.ref("newPassword")) .replace(/'/g, "") .messages({   "any.only": "Confirm password must match new password",   "string.empty": "Confirm password is required",}),
-
-    resetToken: Joi.string().required().trim().replace(/'/g, "") .messages({ "string.empty": "Token is required", }),
+    email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } }).lowercase().trim().required().replace(/'/g, "").messages({
+      "string.empty": "Email is required",
+      "string.email": "Invalid email format"
+    }),
+    newPassword: Joi.string().pattern(new RegExp("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().trim().replace(/'/g, "").messages({
+      "string.base": "Password must be a string",
+      "string.empty": "Password is required",
+      "string.pattern.base": "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
+    }),
+    confirmPassword: Joi.string().required().valid(Joi.ref("newPassword")).replace(/'/g, "").messages({
+      "any.only": "Confirm password must match new password",
+      "string.empty": "Confirm password is required"
+    }),
+    resetToken: Joi.string().required().trim().replace(/'/g, "").messages({
+      "string.empty": "Token is required"
+    }),
   });
 
   let validationsObj = new validations();
@@ -368,71 +318,74 @@ function resetPasswordSchema(req: any, res: any, next: any) {
 
   next();
 }
-// reset password
-async function resetPassword(req: any, res: any, next: any) {
+
+async function resetPassword(req: Request, res: Response, next: NextFunction) {
   try {
+    var dpartnerObj = new dbDpartners();
+    var functionsObj = new functions();
     const { email, newPassword, confirmPassword, resetToken } = req.body;
 
     const dpartner: any = await dpartnerObj.finddpartnerByEmail(email);
     if (dpartner.error || !dpartner.data) {
-      return res.send(functionsObj.output(0, dpartner.message));
+      res.send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      return;
     }
 
     const { dpartner_resettoken, dpartner_resettoken_expiry } = dpartner.data;
-   
     if (!dpartner_resettoken || resetToken !== dpartner_resettoken) {
-      return res.send(functionsObj.output(0, "Invalid or expired token."));
+      res.send(functionsObj.output(0, "Invalid or expired token."));
+      return;
     }
 
     let expiryTime = new Date(dpartner_resettoken_expiry + " UTC");
-     const currentTime = new Date();
+    const currentTime = new Date();
     if (currentTime > expiryTime) {
-      return res.send(functionsObj.output(0, "Token has expired."));
+      res.send(functionsObj.output(0, "Token has expired."));
+      return;
     }
 
-    
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    const updateSuccess: any = await dpartnerObj.updatePassword( email, hashedPassword );
+    const updateSuccess: any = await dpartnerObj.updatePassword(email, hashedPassword);
     if (updateSuccess.error) {
-      return res.send(functionsObj.output(0, updateSuccess.message));
-    } 
-    return res.send(functionsObj.output(1, updateSuccess.message, updateSuccess.data));
-    
-  } catch (error) {
-    console.error("Error in resetPassword:", error);
-    return next(error);
-  }
-}
-
-//get all dpartner
-async function getAlldpartners(req: any, res: any, next: any) {
-  try {
-    let dpartners = await dpartnerObj.getAlldpartner();
-   
-    if (dpartners.error) {
-      return res.send(functionsObj.output(0, dpartners.message));
-    } else {
-      return res.send(functionsObj.output(1, dpartners.message, dpartners.data));
+      res.send(functionsObj.output(0, "RESET_PASSWORD_ERROR"));
+      return;
     }
+
+    res.send(functionsObj.output(1, "RESET_PASSWORD_SUCCESS", updateSuccess.data));
+    return;
   } catch (error) {
-    console.error("Error in fetched dpartner:", error);
-    return next(error);
+    next(error);
+    return;
   }
 }
 
-// updateprofile schema
+async function getAlldpartners(req: Request, res: Response, next: NextFunction) {
+  try {
+    let dpartnerObj = new dbDpartners();
+    let functionsObj = new functions();
+    let dpartners = await dpartnerObj.getAlldpartner();
+    if (dpartners.error) {
+      res.send(functionsObj.output(0, "DPARTNERS_FETCH_ERROR"));
+      return;
+    }
+    res.send(functionsObj.output(1, "DPARTNERS_FETCH_SUCCESS", dpartners.data));
+    return;
+  } catch (error) {
+    next(error);
+    return;
+  }
+}
 
-function updateProfileSchema(req: Request, res: any, next: any) {
+function updateProfileSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
     name: Joi.string().min(2).max(50).trim().replace(/'/g, "").messages({
-      "string.empty": "name is required",
+      "string.empty": "name is required"
     }),
     phone: Joi.string().length(10).pattern(/^[0-9]+$/).required().replace(/'/g, "").trim().messages({
-        "string.empty": "Phone number is required",
-        "string.length": "Phone number must be exactly 10 digits",
-        "string.pattern.base": "Phone number must only contain numbers",
-      }),
+      "string.empty": "Phone number is required",
+      "string.length": "Phone number must be exactly 10 digits",
+      "string.pattern.base": "Phone number must only contain numbers"
+    }),
   });
 
   let validationsObj = new validations();
@@ -443,51 +396,59 @@ function updateProfileSchema(req: Request, res: any, next: any) {
   next();
 }
 
-//update-profile
-async function updatedpartnerProfile(req: any, res: any, next: any) {
+async function updatedpartnerProfile(req: Request, res: Response, next: NextFunction) {
   try {
     const { name, phone } = req.body;
-    const id = req.body.user.id; 
+    const id = req.body.user.id;
+    let dpartnerObj = new dbDpartners();
+    let functionsObj = new functions();
     const result = await dpartnerObj.updatedpartnerProfile(id, name, phone);
-
     if (result.error) {
-      return res.send(functionsObj.output(0, result.message));
-    } 
-   return res.send(functionsObj.output(1, result.message, result.data));
-  
+      res.send(functionsObj.output(0, "DPARTNER_UPDATE_ERROR"));
+      return;
+    }
+    res.send(functionsObj.output(1, "DPARTNER_UPDATE_SUCCESS", result.data));
+    return;
   } catch (error) {
-    console.error("Error in updatedpartnerProfileController:", error);
-    return res.send(functionsObj.output(0, "Internal server error", error));
+    next(error);
+    return;
   }
 }
 
-// get one dpartner profile
-async function getOnedpartner(req: any, res: any, next: NextFunction) {
+async function getOnedpartner(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.body.user) {
-      return res.send(functionsObj.output(0, "Unauthorized: No dpartner data found"));
+      const functionsObj = new functions();
+      res.send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      return;
     }
 
     const dpartnerId = req.body.user.id;
+    const dpartnerObj = new dbDpartners();
     const dpartner = await dpartnerObj.finddpartnerById(dpartnerId);
+    const functionsObj = new functions();
     if (!dpartner || dpartner.error) {
-      return res.send(functionsObj.output(0, dpartner?.message || "dpartner not found") );
+      res.send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      return;
     }
 
-    return res.send(functionsObj.output(1, dpartner.message, dpartner.data));
+    res.send(functionsObj.output(1, "DPARTNER_FETCH_SUCCESS", dpartner.data));
+    return;
   } catch (error) {
-    console.error("Error fetching dpartner:", error);
-    return next(error);
+    next(error);
+    return;
   }
 }
 
-// email schema
-function emailSchema(req: any, res: any, next: any) {
+function emailSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    email: Joi.string().email({ minDomainSegments: 2,tlds: { allow: ["com", "net"] },}).lowercase().trim().required().replace(/'/g, "").messages({ "string.empty": "Email is required.","string.email": "Invalid email format.", }),
+    email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } }).lowercase().trim().required().replace(/'/g, "").messages({
+      "string.empty": "Email is required.",
+      "string.email": "Invalid email format."
+    }),
   });
 
-  let validationsObj = new validations();
+  const validationsObj = new validations();
   if (!validationsObj.validateRequest(req, res, next, schema)) {
     return;
   }
@@ -495,51 +456,51 @@ function emailSchema(req: any, res: any, next: any) {
   next();
 }
 
-//check email
-async function checkEmail(req: any, res: any, next: any) {
+async function checkEmail(req: Request, res: Response, next: NextFunction) {
   try {
     const { email } = req.body;
-
-
+    var dpartnerObj = new dbDpartners();
     const dpartner = await dpartnerObj.finddpartnerByEmail(email);
-
+    const functionsObj = new functions();
     if (!dpartner || dpartner.error) {
-      return res.status(404).send(functionsObj.output(0, dpartner.message));
+      res.status(404).send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      return;
     }
 
-  
-    return res.status(200).send(functionsObj.output( 1, dpartner.message, dpartner.data));
+    res.status(200).send(functionsObj.output(1, "DPARTNER_EXISTS", dpartner.data));
+    return;
   } catch (error) {
-    console.error("Error checking email:", error);
-    return next(error);
+    next(error);
+    return;
   }
 }
 
-//delete -profile
-
-async function deletedpartner(req: any, res: any, next: any) {
+async function deletedpartner(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.body.user) {
-      return res.status(401).send(functionsObj.output(0, "Unauthorized: No dpartner data found"));
+      const functionsObj = new functions();
+      res.status(401).send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      return;
     }
 
     const dpartnerId = req.body.user.id;
+    const dpartnerObj = new dbDpartners();
     const result = await dpartnerObj.deletedpartnerProfile(dpartnerId);
-
+    const functionsObj = new functions();
     if (result.error) {
-      return res.status(404).send(functionsObj.output(0, result.message));
+      res.status(404).send(functionsObj.output(0, "DPARTNER_DELETE_ERROR"));
+      return;
     }
 
-    return res.status(200).send(functionsObj.output(1, result.message, result.data));
+    res.status(200).send(functionsObj.output(1, "DPARTNER_DELETE_SUCCESS", result.data));
+    return;
   } catch (error) {
-    console.error("Error deleting dpartner:", error);
-    return next(error);
+    next(error);
+    return;
   }
 }
 
-
-// update delivery partner schema
-function AvailabilitySchema(req: any, res: any, next: any) {
+function AvailabilitySchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
     isAvailable: Joi.boolean().required().messages({
       "boolean.base": "Availability must be a boolean value.",
@@ -547,7 +508,7 @@ function AvailabilitySchema(req: any, res: any, next: any) {
     }),
   });
 
-  let validationsObj = new validations();
+  const validationsObj = new validations();
   if (!validationsObj.validateRequest(req, res, next, schema)) {
     return;
   }
@@ -555,28 +516,27 @@ function AvailabilitySchema(req: any, res: any, next: any) {
   next();
 }
 
-
-//update delivery partner status
- async function dpartnerIsAvailable (req: any, res: any, next: any){
+async function dpartnerIsAvailable(req: Request, res: Response, next: NextFunction) {
   try {
-   
     if (!req.body.user) {
-      return res.status(401).json( functionsObj.output(0, "Unauthorized: No delivery partner data found"));
+      const functionsObj = new functions();
+      res.status(401).json(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      return;
     }
     const dpartnerId = req.body.user.id;
     const { isAvailable } = req.body;
-
-    const updateAvailability:any = await dpartnerObj.setdPartnerAvailable(dpartnerId, isAvailable);
-
+    const dpartnerObj = new dbDpartners();
+    const updateAvailability: any = await dpartnerObj.setdPartnerAvailable(dpartnerId, isAvailable);
+    const functionsObj = new functions();
     if (updateAvailability.error) {
-      return res.status(400).json(functionsObj.output(0, updateAvailability.message));
+      res.status(400).json(functionsObj.output(0, "DPARTNER_UPDATE_AVAILABLE_ERROR "));
+      return;
     }
 
-    return res.status(200).json(functionsObj.output( 1, "Successfully updated the availability of the delivery partner",updateAvailability.data));
+    res.status(200).json(functionsObj.output(1, "DPARTNER_UPDATE_AVAILABLE_SUCCESS ", updateAvailability.data));
+    return;
   } catch (error) {
-    console.error("Error updating delivery partner availability:", error);
-    return next(error);
+    next(error);
+    return;
   }
-};
-
-
+}

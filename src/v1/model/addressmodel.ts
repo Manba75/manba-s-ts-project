@@ -1,6 +1,6 @@
 import { appdb } from "./appdb";
 
-export class dbaddress  extends appdb{
+export class dbaddress  extends appdb {
 
 constructor() {
     super();
@@ -46,7 +46,8 @@ async getExistingAddress(cust_id: number,city_id: number,address: any,address_ty
     } else {
         await this.executeQuery("ROLLBACK");
     }
-    } catch (error) {
+    }
+     catch (error) {
     await this.executeQuery("ROLLBACK");
     console.error("Error in getExistingAddress:", error);
     return_data.message = "Database error occurred";
