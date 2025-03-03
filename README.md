@@ -118,7 +118,7 @@ Server runs at: `http://localhost:8000`
 - 📍 **Real-time order tracking** using GPS
 - 📊 **Analytics dashboard** for admins
 - 🌍 **Multi-location support** for scalability
-- 📡 **Push notifications for order updates**
+- 📡 **notifications for order updates**
 
 ---
 
