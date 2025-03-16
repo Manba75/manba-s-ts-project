@@ -55,7 +55,7 @@ async function signup(req: Request, res: Response, next: NextFunction) {
     let newUser = await customersObj.createCustomer(email, hashpassword, otp, createdip);
     var functionsObj = new functions();
     if (newUser.error) {
-      res.send(functionsObj.output(0, "CUSTOMER_INSERT_ERROR"));
+      res.send(functionsObj.output(0, newUser.message));
       return;
     }
     let mailService = new MailService();
@@ -65,7 +65,7 @@ async function signup(req: Request, res: Response, next: NextFunction) {
       res.send(functionsObj.output(0, "TOKEN_ERROR"));
       return;
     }
-    res.send(functionsObj.output(1, "CUSTOMER_INSERT_SUCCESS", newUser.data));
+    res.send(functionsObj.output(1, newUser.message, newUser.data));
     return;
   } catch (error: any) {
     res.send(next(error));
@@ -99,7 +99,7 @@ async function verifyUserOTP(req: Request, res: Response, next: NextFunction) {
       res.send(functionsObj.output(0, result.message));
       return;
     }
-    res.send(functionsObj.output(1, "USER_VERIFIED_SUCCESS", result.data));
+    res.send(functionsObj.output(1, result.message, result.data));
     return;
   } catch (error) {
     res.send(functionsObj.output(0, "USER_VERIFIED_ERROR ", error));
@@ -131,10 +131,10 @@ async function resendOTPController(req: Request, res: Response, next: NextFuncti
       res.send(functionsObj.output(0, result.message));
       return;
     }
-    res.send(functionsObj.output(1, "OTP_RESEND_SUCCESS", result.data));
+    res.send(functionsObj.output(1, result.message, result.data));
     return;
-  } catch (error) {
-    res.send(functionsObj.output(0, "OTP_RESEND_ERROR", error));
+  } catch (error:any) {
+    res.send(functionsObj.output(0, error.message, error));
     return;
   }
 }
@@ -157,7 +157,7 @@ async function login(req: Request, res: Response, next: NextFunction) {
       return;
     }
     if (!user.cust_isverify) {
-      res.send(functionsObj.output(0, "EMAIL_VERIFIED_FAIL"));
+      res.send(functionsObj.output(0, user.message));
       return;
     }
     const updateLastLoginResponse: any = await customersObj.updateLastLogin(email);
@@ -167,7 +167,7 @@ async function login(req: Request, res: Response, next: NextFunction) {
     }
     let updatesocketid: any = await customersObj.updateSocketId(user.id, socketId);
     if (updatesocketid.error) {
-      res.send(functionsObj.output(0, "CUSTOMER_UPDATE_SOCKETID_ERROR"));
+      res.send(functionsObj.output(0, updatesocketid.message));
       return;
     }
     const token = generateTokenAndSetCookies(res, user.id);
@@ -253,10 +253,10 @@ async function resetPassword(req: Request, res: Response, next: NextFunction) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const updateSuccess: any = await customersObj.updatePassword(email, hashedPassword);
     if (updateSuccess.error) {
-      res.send(functionsObj.output(0, "RESET_PASSWORD_ERROR"));
+      res.send(functionsObj.output(0, updateSuccess.message));
       return;
     }
-    res.send(functionsObj.output(1, "RESET_PASSWORD_SUCCESS", updateSuccess.data));
+    res.send(functionsObj.output(1, updateSuccess.message, updateSuccess.data));
     return;
   } catch (error) {
     next(error);
@@ -270,10 +270,10 @@ async function getAllUsers(req: Request, res: Response, next: NextFunction) {
     var functionsObj = new functions();
     let users = await customersObj.getAllUser();
     if (users.error) {
-      res.send(functionsObj.output(0, "CUSTOMERS_FETCH_ERROR"));
+      res.send(functionsObj.output(0, users.message));
       return;
     }
-    res.send(functionsObj.output(1, "CUSTOMERS_FETCH_SUCCESS", users.data));
+    res.send(functionsObj.output(1,users.message, users.data));
     return;
   } catch (error) {
     next(error);
@@ -305,10 +305,10 @@ async function updateUserProfile(req: Request, res: Response, next: NextFunction
     const id = req.body.user.id;
     const result = await customersObj.updateUserProfile(id, name, phone);
     if (result.error) {
-      res.send(functionsObj.output(0, "CUSTOMER_UPDATE_ERROR"));
+      res.send(functionsObj.output(0, result.message));
       return;
     }
-    res.send(functionsObj.output(1, "CUSTOMER_UPDATE_SUCCESS", result.data));
+    res.send(functionsObj.output(1, result.message, result.data));
     return;
   } catch (error) {
     res.send(functionsObj.output(0, "CUSTOMER_UPDATE_ERROR", error));
@@ -327,10 +327,10 @@ async function getOneUser(req: Request, res: Response, next: NextFunction) {
     const userId = req.body.user.id;
     const user = await customersObj.findUserById(userId);
     if (!user || user.error) {
-      res.send(functionsObj.output(0, "CUSTOMER_NOT_FOUND "));
+      res.send(functionsObj.output(0, user.message));
       return;
     }
-    res.send(functionsObj.output(1, "CUSTOMER_FETCH_SUCCESS", user.data));
+    res.send(functionsObj.output(1, user.message, user.data));
     return;
   } catch (error) {
     next(error);
@@ -359,10 +359,10 @@ async function checkEmail(req: Request, res: Response, next: NextFunction) {
     const user = await customersObj.findUserByEmail(email);
     var functionsObj = new functions();
     if (!user || user.error) {
-      res.send(functionsObj.output(0, "CUSTOMER_NOT_FOUND"));
+      res.send(functionsObj.output(0, user.message));
       return;
     }
-    res.send(functionsObj.output(1, "CUSTOMER_EXISTS", user.data));
+    res.send(functionsObj.output(1, user.message, user.data));
     return;
   } catch (error) {
     next(error);
@@ -381,10 +381,10 @@ async function deleteUser(req: any, res: Response, next: NextFunction) {
     const userId = req.body.user.id;
     const result = await customersObj.deleteUserProfile(userId);
     if (result.error) {
-      res.status(404).send(functionsObj.output(0, "CUSTOMER_DELETE_ERROR"));
+      res.status(404).send(functionsObj.output(0, result.message));
       return;
     }
-    res.status(200).send(functionsObj.output(1, "CUSTOMER_DELETE_SUCCESS", result.data));
+    res.status(200).send(functionsObj.output(1, result.message, result.data));
     return;
   } catch (error) {
     next(error);

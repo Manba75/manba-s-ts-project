@@ -27,11 +27,11 @@ async insertOrUpdateVehicle(dpartner_id: number, vehicletype_id: number, vehicle
             };
             vehicleResult = await this.update(this.table, updateVehicleData, `WHERE id=${vehicle.id} AND dpartner_id ='${vehicle.dpartner_id}'`);
             if (!vehicleResult) {
-                return_data.message = "Vehicle created  failed";
+                return_data.message = "VEHICLE_INSERT_ERROR";
                 return return_data;
             }
           } else {
-           return_data.message="Vehicle with this number already exists for the delivery partner!";
+           return_data.message="VEHICLE_EXISTS";
           }
         } else {
           const insertVehicleData = {
@@ -46,16 +46,16 @@ async insertOrUpdateVehicle(dpartner_id: number, vehicletype_id: number, vehicle
           };
           vehicleResult = await this.insertRecord(insertVehicleData);
           if (!vehicleResult) {
-            return_data.message = "Vehicle created failed";
+            return_data.message = "VEHICLE_INSERT_ERROR";
             return return_data;
           }
         }
         return_data.error = false;
-        return_data.message = "Vehicle registered successfully";
+        return_data.message = "VEHICLE_INSERT_SUCCESS";
         return_data.data = vehicleResult;
         return return_data;
       } catch (error) {
-        return_data.message ="internal server error "
+        return_data.message ="VEHICLE_INSERT_ERROR "
         return return_data;
       }
     
@@ -73,16 +73,17 @@ async softDeleteVehiclesByDpartnerId(dpartner_id: number) {
       let vehicleResult = await this.update(this.table,vehicleUpdateData,`WHERE dpartner_id = '${dpartner_id}'` );
   
       if (!vehicleResult) {
-        return_data.message = "Failed to delete associated vehicles.";
+        return_data.message = "VEHICLE_DELETE_ERROR";
         return return_data;
       }
   
       return_data.error = false;
-      return_data.message = "Vehicles deleted successfully.";
+      return_data.message = "VEHICLE_DELETE_SUCCESS";
+      return_data.data = vehicleResult;
       return return_data;
     } catch (error) {
-      console.error("Error deleting vehicles:", error);
-      return_data.message = "Error deleting vehicles.";
+     
+      return_data.message = "VEHICLE_DELETE_ERROR";
       return return_data;
     }
   }

@@ -39,6 +39,7 @@ function orderSchema(req: Request, res: Response, next: NextFunction) {
       latitude: Joi.number().required().messages({ "number.base": "Pickup latitude is required." }),
       longitude: Joi.number().required().messages({ "number.base": "Pickup longitude is required." }),
     }).required(),
+    
     drop: Joi.object({
       city: Joi.string().required().messages({ "string.empty": "Drop city is required." }),
       flatno: Joi.string().required().messages({ "string.empty": "Drop flat number is required." }),
@@ -227,6 +228,7 @@ async function verifyPickupOtp(req: Request, res: Response) {
       res.send(functionsObj.output(0, "OTP_VERIFY_ERROR",verifyorder.message));
       return;
     }
+    
     // const customerSocketId :any= await customerObj.getCustomerSocketId(
     //   order.customer_id
     // );

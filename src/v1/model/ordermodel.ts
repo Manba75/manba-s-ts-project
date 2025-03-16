@@ -88,14 +88,14 @@ export class dborders extends appdb {
     const insertResult = await this.insertRecord(orderData);
     if (!insertResult) {
       await this.executeQuery("ROLLBACK");
-      return_data.message = "Failed to create order";
+      return_data.message = "ORDER_INSERT_ERROR";
       return return_data;
     }
 
     await this.executeQuery("COMMIT");
 
     return_data.error = false;
-    return_data.message = "Order placed successfully";
+    return_data.message = "ORDER_INSERT_SUCCESS";
     return_data.data = insertResult;
     return return_data;
   }
@@ -107,16 +107,16 @@ export class dborders extends appdb {
       let orderResult = await this.select(this.table, "*", `WHERE id = '${orderId}' AND is_deleted=false`, "", "");
 
       if (orderResult.length === 0) {
-        return_data.message = `No order found with ID ${orderId}`;
+        return_data.message = "ORDER_NOT_FOUND";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "Order retrieved successfully";
+      return_data.message = "ORDER_FETCH_SUCCESS";
       return_data.data = orderResult[0];
       return return_data;
     } catch (error) {
-      return_data.message = "Error fetching order by ID.";
+      return_data.message = "ORDER_FETCH_ERROR";
       return return_data;
     }
   }
@@ -130,16 +130,16 @@ export class dborders extends appdb {
      
 
       if (!updatedResult) {
-        return_data.message = `No order accepted by any delivery partners`;
+        return_data.message = "ORDER_ASSIGN_ERROR";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "Order accepted successfully";
+      return_data.message = "ORDER_ACCEPT_SUCCESS";
       return_data.data = updatedResult;
       return return_data;
     } catch (error) {
-      return_data.message = "Error assigning delivery partners.";
+      return_data.message = "ORDER_ASSIGN_ERROR";
       return return_data;
     }
   }
@@ -152,16 +152,16 @@ export class dborders extends appdb {
       let updatedResult = await this.updateRecord(orderId, updateData);
 
       if (!updatedResult) {
-        return_data.message = `No order status updated by delivery partners`;
+      return_data.message = "ORDER_STATUS_UPDATE_ERROR";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "Order status changed successfully";
+      return_data.message = "ORDER_STATUS_UPDATE_SUCCESS";
       return_data.data = updatedResult;
       return return_data;
     } catch (error) {
-      return_data.message = "Error updating order status.";
+      return_data.message = "ORDER_STATUS_UPDATE_ERROR";
       return return_data;
     }
   }
@@ -204,11 +204,11 @@ export class dborders extends appdb {
       }
 
       return_data.error = false;
-      return_data.message = "Orders retrieved successfully.";
+      return_data.message = "ORDER_FETCH_SUCCESS";
       return_data.data = orders;
       return return_data;
     } catch (error) {
-      return_data.message = "Error fetching orders.";
+      return_data.message = "ORDER_FETCH_ERROR";
       return return_data;
     }
   }
@@ -221,16 +221,16 @@ export class dborders extends appdb {
       let orders = await this.allRecords("*");
 
       if (!orders || orders.length === 0) {
-        return_data.message = "No orders found.";
+        return_data.message = "ORDER_NOT_FOUND";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "All orders retrieved successfully.";
+      return_data.message = "ORDERS_FETCH_SUCCESS";
       return_data.data = orders;
       return return_data;
     } catch (error) {
-      return_data.message = "Error fetching all orders.";
+      return_data.message = "ORDERS_FETCH_ERROR";
       return return_data;
     }
   }

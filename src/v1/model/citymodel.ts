@@ -1,4 +1,5 @@
 import { appdb } from "./appdb";
+import {uploadOnCloudinary} from '../library/cloudinary'
 
 export class dbCity extends appdb {
   constructor() {
@@ -7,7 +8,7 @@ export class dbCity extends appdb {
     this.uniqueField = "id";
   }
 
-  async checkCity(city: string) {
+async checkCity(city: string) {
     let return_data = {
       error: true,
       message: " ",
@@ -19,90 +20,95 @@ export class dbCity extends appdb {
       const cities = await this.allRecords("*");
 
       if (!cities) {
-        return_data.message = "city not found";
+        return_data.message = "CITY_NOT_FOUND";
         return return_data;
       } 
         return_data.error = false;
         return_data.data = cities.rows[0];
-        return_data.message = "Successfully created city";
+        return_data.message = "CITY_FETCH_SUCCESS";
         return return_data;
     
     } catch (error) {
       return_data.error = true;
-      return_data.message = "Error checking record into database";
+      return_data.message = "CITY_FETCH_ERROR";
       return return_data;
     }
   }
 
-  async insertCity(city: string, state: string, createdIp: string) {
-    let return_data = {
-      error: true,
-      message: "",
-      data: {},
-    };
-
-    try {
-      await this.executeQuery("BEGIN");
-
-      this.where = `WHERE city_name = '${city}' AND city_state_name = '${state}'`;
-      let existingCity: any[] = await this.allRecords("*");
-
-      if (existingCity.length > 0) {
-        const cityRecord = existingCity[0];
-
-        if (!cityRecord.is_deleted) {
-          await this.executeQuery("ROLLBACK");
-          return_data.message = "City already exists in this state.";
+async insertCity(city: string, state: string, createdIp: string, cityImagePath: string) {
+      let return_data = {
+        error: true,
+        message: "",
+        data: {},
+      };
+  
+      try {
+        await this.executeQuery("BEGIN");
+  
+        this.where = `WHERE city_name = '${city}' AND city_state_name = '${state}'`;
+        let existingCity: any[] = await this.allRecords("*");
+  
+        if (existingCity.length > 0) {
+          const cityRecord = existingCity[0];
+  
+          if (!cityRecord.is_deleted) {
+            await this.executeQuery("ROLLBACK");
+            return_data.message = "CITY_EXISTS";
+            return return_data;
+          }
+  
+          let updateData = {
+            city_img: cityImagePath,
+            is_deleted: false,
+            city_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
+            city_created_ip: createdIp,
+          };
+  
+          let updateResult = await this.updateRecord(cityRecord.id, updateData);
+          if (!updateResult) {
+            await this.executeQuery("ROLLBACK");
+            return_data.message = "CITY_INSERT_ERROR";
+            return return_data;
+          }
+  
+          await this.executeQuery("COMMIT");
+          return_data.error = false;
+          return_data.data = updateResult;
+          return_data.message = "CITY_INSERT_SUCCESS";
           return return_data;
         }
-
-        let updateData = {
-          is_deleted: false,
+  
+       
+  
+        let insertData = {
+          city_name: city,
+          city_state_name: state,
+          city_created_on: new Date().toISOString().replace("T", " ").slice(0, -1),
           city_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
           city_created_ip: createdIp,
+          city_img: cityImagePath, 
+          is_deleted: false,
         };
-
-        let updateResult = await this.updateRecord(cityRecord.id, updateData);
-        if (!updateResult) {
+  
+        let insertResult = await this.insertRecord(insertData);
+        if (!insertResult) {
           await this.executeQuery("ROLLBACK");
-          return_data.message = "Failed to reactivate city.";
+          return_data.message = "CITY_INSERT_ERROR";
           return return_data;
         }
-
+  
         await this.executeQuery("COMMIT");
         return_data.error = false;
-        return_data.data = updateResult;
-        return_data.message = "City reactivated successfully.";
+        return_data.data = insertResult;
+        return_data.message = "CITY_INSERT_SUCCESS";
         return return_data;
-      }
-
-      let insertData = {
-        city_name: city,
-        city_state_name: state,
-        city_created_on: new Date().toISOString().replace("T", " ").slice(0, -1),
-        city_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
-        city_created_ip: createdIp,
-        is_deleted: false,
-      };
-
-      let insertResult = await this.insertRecord(insertData);
-      if (!insertResult) {
+      } catch (error) {
         await this.executeQuery("ROLLBACK");
-        return_data.message = "Failed to insert city.";
+        return_data.message = "CITY_DATABASE_ERROR";
         return return_data;
       }
-
-      await this.executeQuery("COMMIT");
-      return_data.error = false;
-      return_data.data = insertResult;
-      return_data.message = "City added successfully.";
-      return return_data;
-    } catch (error) {
-      await this.executeQuery("ROLLBACK");
-      return_data.message = "Error inserting record into database.";
-      return return_data;
     }
-  }
+  
 
   async getCityById(id: number) {
     let return_data = {
@@ -113,18 +119,18 @@ export class dbCity extends appdb {
 
     try {
       this.where = `WHERE id = '${id}' AND is_deleted=false`;
-      let cityResult = await this.listRecords("*");
+      let cityResult = await this.allRecords("*");
 
       if (cityResult.length === 0) {
-        return_data.message = `No city found with ID ${id}`;
+        return_data.message = `CITY_NOT_FOUND`;
         return return_data;
       }
       return_data.error = false;
-      return_data.message = "City found";
+      return_data.message = "CITY_FETCH_SUCCESS";
       return_data.data = cityResult[0];
       return return_data;
     } catch (error) {
-      return_data.message = "Error fetching city by ID.";
+      return_data.message = "CITY_FETCH_ERROR";
       return return_data;
     }
   }
@@ -143,16 +149,16 @@ export class dbCity extends appdb {
       let cityResult = await this.allRecords("*");
 
       if (cityResult.length === 0) {
-        return_data.message = "No cities found.";
+        return_data.message = "CITY_NOT_FOUND";
         return return_data;
       } 
         return_data.error = false;
-        return_data.message = "Cities fetched successfully.";
+        return_data.message = "CITIES_FETCH_SUCCESS";
         return_data.data = cityResult;
         return return_data;
      
     } catch (error) {
-      return_data.message = "Error fetching all cities.";
+      return_data.message = "CITIES_FETCH_ERROR";
       return return_data;
     }
   }
@@ -169,15 +175,15 @@ export class dbCity extends appdb {
       let cityResult = await this.allRecords("*");
 
       if (cityResult.length === 0) {
-        return_data.message = "City not found.";
+        return_data.message = "CITY_NOT_FOUND";
         return return_data;
       }
       return_data.error = false;
-      return_data.message = "City ID found.";
+      return_data.message = "CITY_FETCH_SUCCESS";
       return_data.data = cityResult[0].id;
       return return_data;
     } catch (error) {
-      return_data.message = "Error fetching city ID.";
+      return_data.message = "CITY_FETCH_ERROR";
       return return_data;
     }
   }
@@ -197,7 +203,7 @@ export class dbCity extends appdb {
 
       if (checkResult.length > 0) {
         await this.executeQuery("ROLLBACK");
-        return_data.message = "City with the same name and state already exists.";
+        return_data.message = "CITY_EXISTS ";
         return_data.data = { existingCityId: checkResult[0].id };
         return return_data;
       }
@@ -212,19 +218,19 @@ export class dbCity extends appdb {
 
       if (!updateResult) {
         await this.executeQuery("ROLLBACK");
-        return_data.message = `No city found with ID ${id}`;
+        return_data.message = `CITY_NOT_FOUND`;
         return return_data;
       }
 
       
       return_data.error = false;
-      return_data.message = "City updated successfully.";
+      return_data.message = "CITY_UPDATE_SUCCESS";
       return_data.data = updateResult;
       await this.executeQuery("COMMIT");
       return return_data;
     } catch (error) {
       await this.executeQuery("ROLLBACK");
-      return_data.message = "Error updating city.";
+      return_data.message = "CITY_UPDATE_ERROR";
       return return_data;
     }
   }
@@ -244,16 +250,16 @@ export class dbCity extends appdb {
       let deleteResult = await this.update(this.table,updateData ,`WHERE id = ${id} AND is_deleted = FALSE`);
 
       if (deleteResult.affectedRows === 0) {
-        return_data.message = `No city found with ID ${id}`;
+        return_data.message = `CITY_NOT_FOUND`;
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "City deleted successfully.";
+      return_data.message = "CITY_DELETE_SUCCESS";
       return_data.data = deleteResult;
       return return_data;
     } catch (error) {
-      return_data.message = "Error deleting city.";
+      return_data.message = "CITY_DELETE_ERROR";
       return return_data;
     }
   }
@@ -281,7 +287,7 @@ export class dbCity extends appdb {
       
 
       if (!cityResult || !Array.isArray(cityResult) || cityResult.length < 2) {
-        return_data.message = "One or both cities not found.";
+        return_data.message = "CITY_NOT_FOUND";
         return return_data;
       }
 
@@ -289,15 +295,15 @@ export class dbCity extends appdb {
       return_data.data.dropCityDetails = cityResult.find((city: any) => city.city_name === dropCity) || null;
 
       if (!return_data.data.pickupCityDetails || !return_data.data.dropCityDetails) {
-        return_data.message = "Error extracting city details.";
+        return_data.message = "CITY_FETCH_ERROR";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "City details fetched successfully.";
+      return_data.message = "CITY_FETCH_SUCCESS.";
       return return_data;
     } catch (error) {
-      return_data.message = "An error occurred while fetching city details.";
+      return_data.message = "CITY_FETCH_ERROR";
       return return_data;
     }
   }

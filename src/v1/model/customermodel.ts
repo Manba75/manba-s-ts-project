@@ -26,7 +26,8 @@ async createCustomer(email: string,password: string, otp: number,createdIP: stri
         const user = existingUser[0];
 
         if (!user.is_deleted) {
-          return_data.message = "Email already exists.";
+          return_data.message = "CUSTOMER_EXISTS";
+          
           return return_data;
         }
 
@@ -42,13 +43,13 @@ async createCustomer(email: string,password: string, otp: number,createdIP: stri
 
         let updateResult = await this.updateRecord(user.id, updateData);
         if (!updateResult) {
-          return_data.message = "Customer update error";
+          return_data.message = "CUSTOMER_INSERT_ERROR";
           return return_data;
         }
 
         return_data.error = false;
         return_data.data = updateResult;
-        return_data.message = "Account reactivated successfully";
+        return_data.message = "CUSTOMER_INSERT_SUCCESS";
         return return_data;
       }
 
@@ -67,18 +68,17 @@ async createCustomer(email: string,password: string, otp: number,createdIP: stri
 
       let insertResult = await this.insertRecord(insertData);
       if (!insertResult) {
-        return_data.message = "Customer creation error";
+        return_data.message = "VEHICLE_INSERT_ERROR";
         return return_data;
       }
 
       return_data.error = false;
       return_data.data = insertResult;
-      return_data.message = "Successfully created user";
+      return_data.message = "CUSTOMER_INSERT_SUCCESS";
       return return_data;
     } catch (error) {
-      console.error("Database Insert Error:", error); 
       return_data.error = true;
-      return_data.message = "Error inserting record into database";
+      return_data.message = "CUSTOMER_INSERT_ERROR";
       return return_data;
     }
   }
@@ -127,7 +127,7 @@ async verifyUserOTP(email: string, otp: number | null) {
       }
 
       return_data.error = false;
-      return_data.message = "User verified successfully.";
+      return_data.message = "CUSTOMER_VERIFIED_SUCCESS";
       return_data.data = updateResult;
       return return_data;
     } catch (error) {
@@ -153,7 +153,7 @@ async resendOTP(email: string) {
       let existingUser: any[] = await this.allRecords("*");
 
       if (existingUser.length === 0) {
-        return_data.message = "User not found.";
+        return_data.message = "CUSTOMER_NOT_FOUND";
         return return_data;
       }
 
@@ -169,20 +169,20 @@ async resendOTP(email: string) {
       };
       let updateResult = await this.updateRecord(user.id, updateData);
       if (!updateResult) {
-        return_data.message = "not update otp.";
+        return_data.message = "OTP_RESEND_ERROR";
         return return_data;
       } 
       let mailService = new MailService();
       await mailService.sendOTPMail(email, newOTP);
 
       return_data.error = false;
-      return_data.message ="OTP resent successfully. Please check your email.";
+      return_data.message ="OTP_RESEND_SUCCESS";
       return return_data;
     
     } catch (error) {
-      console.error("Error resending OTP:", error);
+      
       return_data.error = true;
-      return_data.message = "Error while resending OTP.";
+      return_data.message = "OTP_RESEND_ERROR";
       return return_data;
     }
   }
@@ -203,18 +203,18 @@ async findUserByEmail(email: string) {
       let result = await this.allRecords("*");
 
       if (result.length === 0) {
-        return_data.message = "User not found";
+        return_data.message = "CUSTOMER_NOT_FOUND";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "login successfully";
+      return_data.message = "CUSTOMER_FOUND";
       return_data.data = result[0];
       return return_data;
 
     } catch (error) {
-      console.error("Database Query Error:", error);
-      return_data.message = "Database error while fetching user";
+     
+      return_data.message = "CUSTOMER_FETCH_ERROR";
       return return_data;
     }
   }
@@ -283,7 +283,7 @@ async updateResetToken( email: string,resetToken: string | null,resetTokenExpiry
       return_data.message = "Updated reset token";
       return return_data;
     } catch (error) {
-      console.error("Database Update Error:", error);
+      
       return_data.message = "Error updating last login";
       return return_data;
     }
@@ -306,17 +306,17 @@ async updatePassword(email: string, password: string) {
       let updateResult = await this.update(this.table,updateData,`WHERE cust_email = '${email}'`);
 
       if (!updateResult || updateResult.rowCount === 0) {
-        return_data.message = "User not found or password update failed.";
+        return_data.message = "CUSTOMER_NOT_FOUND";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "Password updated successfully.";
+      return_data.message = "RESET_PASSWORD_SUCCESS";
       return_data.data = updateResult;
       return return_data;
     } catch (error) {
-      console.error("Database Update Error:", error);
-      return_data.message = "Error updating password.";
+      
+      return_data.message = "RESET_PASSWORD_ERROR";
       return return_data;
     }
   }
@@ -334,15 +334,15 @@ async getAllUser() {
       let users = await this.allRecords("*");
 
       if (!users || users.length === 0) {
-        return_data.message = "No active users found.";
+        return_data.message = "CUSTOMERS_NOT_FOUND";
       } 
       return_data.error = false;
       return_data.data = users;
-      return_data.message = "Retrieved all active user data successfully.";
+      return_data.message = "CUSTOMERS_FETCH_SUCCESS";
       
     } catch (error) {
-      console.error("Error fetching users from database:", error);
-      return_data.message = "Error fetching user data.";
+     
+      return_data.message = "CUSTOMERS_FETCH_ERROR";
     }
 
     return return_data;
@@ -366,17 +366,17 @@ async getAllUser() {
       let updateResult = await this.updateRecord(id,updateData);
 
       if (!updateResult || updateResult.rowCount === 0) {
-        return_data.message = "User not found or profile update failed.";
+        return_data.message = "CUSTOMER_UPDATE_PROFILE_ERROR";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "Profile updated successfully.";
+      return_data.message = "CUSTOMER_UPDATE_PROFILE_SUCCESS";
       return_data.data = updateData;
       return return_data;
     } catch (error) {
-      console.error("Database Update Error:", error);
-      return_data.message = "Error updating profile.";
+     
+      return_data.message = "CUSTOMER_UPDATE_PROFILE_ERROR";
       return return_data;
     }
   }
@@ -393,17 +393,17 @@ async getAllUser() {
       let userResult = await this.selectRecord(id, "*");
 
       if (!userResult || userResult.length === 0) {
-        return_data.message = "User not found.";
+        return_data.message = "CUSTOMER_NOT_FOUND";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "User profile retrieved successfully.";
+      return_data.message = "CUSTOMER_FETCH_SUCCESS";
       return_data.data = userResult[0]; 
       return return_data;
     } catch (error) {
-      console.error("Database Fetch Error:", error);
-      return_data.message = "Error fetching user profile.";
+    
+      return_data.message = "CUSTOMER_FETCH_ERROR";
       return return_data;
     }
   }
@@ -425,17 +425,17 @@ async getAllUser() {
       let userResult = await this.updateRecord(id,updateData)
 
       if (!userResult) {
-        return_data.message = "User not found or already deleted.";
+        return_data.message = "CUSTOMER_NOT_FOUND";
         return return_data;
       }
 
       return_data.error = false;
-      return_data.message = "User deleted successfully.";
+      return_data.message = "CUSTOMER_DELETED_SUCCESS";
       return_data.data = userResult; 
       return return_data;
     } catch (error) {
-      console.error("Database Fetch Error:", error);
-      return_data.message = "Error deleting user profile.";
+      
+      return_data.message = "CUSTOMER_DELETE_ERROR";
       return return_data;
     }
   }
@@ -455,17 +455,17 @@ async getAllUser() {
       let userResult = await this.updateRecord(customerId, updateData);
 
        if (!userResult || userResult.length === 0) {
-         return_data.message = " not update socket id.";
+         return_data.message = "CUSTOMER_UPDATE_SOCKETID_ERROR";
          return return_data;
        }
 
        return_data.error = false;
-       return_data.message = "User socket id updated successfully.";
+       return_data.message = "CUSTOMER_UPDATE_SOCKETID_SUCCESS";
        return_data.data = userResult[0]; 
        return return_data;
      } catch (error) {
-       console.error("Database Fetch Error:", error);
-       return_data.message = "Error fetching user profile.";
+      
+       return_data.message = "CUSTOMER_UPDATE_SOCKETID_ERROR";
        return return_data;
      }
   }
@@ -482,17 +482,18 @@ async getAllUser() {
       let custResult = await this.selectRecord(customerId,"socket_id");
   
       if (custResult.length === 0) {
-        return_data.message = `No sockekt found with ID`;
+        return_data.message = "CUSTOMER_SOCKETID_FETCH_ERROR";
         return return_data;
       } else {
         return_data.error = false;
-        return_data.message = "socket retrived successfully";
+        return_data.message = "CUSTOMER_SOCKETID_FETCH_SUCCESS";
         return_data.data = custResult[0];
         return return_data;
       }
     } catch (error) {
-      console.error("Database fetch Error:", error);
-      return_data.message = "Error fetching socketid";
+      
+      return_data.message = "CUSTOMER_SOCKETID_FETCH_ERROR";
+      return return_data;
     }
   }
   

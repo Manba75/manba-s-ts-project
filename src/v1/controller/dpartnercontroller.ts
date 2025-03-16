@@ -92,19 +92,19 @@ async function signup(req: Request, res: Response, next: NextFunction) {
 
     let city_id: any = await cityObj.getCityIdByCityName(city);
     if (city_id.error) {
-      res.send(functionsObj.output(0, "CITY_NOT_FOUND"));
+      res.send(functionsObj.output(0, city_id.message));
       return;
     }
 
     let vehicleType_id: any = await vehicletypeObj.getVehicleTypeIdByName(vehicletype);
     if (vehicleType_id.error) {
-      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      res.send(functionsObj.output(0, vehicleType_id.message));
       return;
     }
 
     let newdpartner: any = await dpartnerObj.insertDpartner(city_id.data, vehicleType_id.data.id, dpartner_email, hashpassword, createdip, dpartner_licence, dpartner_phone, vehicle_number, vehicle_name, otp);
     if (newdpartner.error) {
-      res.send(functionsObj.output(0, "DPARTNER_INSERT_ERROR"));
+      res.send(functionsObj.output(0, newdpartner.message));
       return;
     }
 
@@ -115,7 +115,7 @@ async function signup(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    res.send(functionsObj.output(1, "DPARTNER_INSERT_SUCCESS", newdpartner.data));
+    res.send(functionsObj.output(1, newdpartner.message, newdpartner.data));
     return;
   } catch (error: any) {
     next(error);
@@ -152,10 +152,10 @@ async function verifydpartnerOTP(req: Request, res: Response, next: NextFunction
     let functionsObj = new functions();
     const result = await dpartnerObj.verifydpartnerOTP(email, otp);
     if (result.error) {
-      res.send(functionsObj.output(0, "OTP_VERIFY_ERROR"));
+      res.send(functionsObj.output(0, result.message));
       return;
     }
-    res.send(functionsObj.output(1, "USER_VERIFIED_SUCCESS", result.data));
+    res.send(functionsObj.output(1, result.message, result.data));
     return;
   } catch (error) {
     next(error);
@@ -186,10 +186,10 @@ async function resendOTPController(req: Request, res: Response, next: NextFuncti
     let functionsObj = new functions();
     let result = await dpartnerObj.resendOTP(email);
     if (result.error) {
-      res.send(functionsObj.output(0, "OTP_RESEND_ERROR"));
+      res.send(functionsObj.output(0, result.message));
       return;
     }
-    res.send(functionsObj.output(1, "OTP_RESEND_SUCCESS", result.data));
+    res.send(functionsObj.output(1, result.message, result.data));
     return;
   } catch (error) {
     next(error);
@@ -347,11 +347,11 @@ async function resetPassword(req: Request, res: Response, next: NextFunction) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const updateSuccess: any = await dpartnerObj.updatePassword(email, hashedPassword);
     if (updateSuccess.error) {
-      res.send(functionsObj.output(0, "RESET_PASSWORD_ERROR"));
+      res.send(functionsObj.output(0, updateSuccess.message));
       return;
     }
 
-    res.send(functionsObj.output(1, "RESET_PASSWORD_SUCCESS", updateSuccess.data));
+    res.send(functionsObj.output(1, updateSuccess.message, updateSuccess.data));
     return;
   } catch (error) {
     next(error);
@@ -365,10 +365,10 @@ async function getAlldpartners(req: Request, res: Response, next: NextFunction) 
     let functionsObj = new functions();
     let dpartners = await dpartnerObj.getAlldpartner();
     if (dpartners.error) {
-      res.send(functionsObj.output(0, "DPARTNERS_FETCH_ERROR"));
+      res.send(functionsObj.output(0, dpartners.message));
       return;
     }
-    res.send(functionsObj.output(1, "DPARTNERS_FETCH_SUCCESS", dpartners.data));
+    res.send(functionsObj.output(1, dpartners.message, dpartners.data));
     return;
   } catch (error) {
     next(error);
@@ -404,10 +404,10 @@ async function updatedpartnerProfile(req: Request, res: Response, next: NextFunc
     let functionsObj = new functions();
     const result = await dpartnerObj.updatedpartnerProfile(id, name, phone);
     if (result.error) {
-      res.send(functionsObj.output(0, "DPARTNER_UPDATE_ERROR"));
+      res.send(functionsObj.output(0, result.message));
       return;
     }
-    res.send(functionsObj.output(1, "DPARTNER_UPDATE_SUCCESS", result.data));
+    res.send(functionsObj.output(1, result.message, result.data));
     return;
   } catch (error) {
     next(error);
@@ -428,11 +428,11 @@ async function getOnedpartner(req: Request, res: Response, next: NextFunction) {
     const dpartner = await dpartnerObj.finddpartnerById(dpartnerId);
     const functionsObj = new functions();
     if (!dpartner || dpartner.error) {
-      res.send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      res.send(functionsObj.output(0, dpartner.message));
       return;
     }
 
-    res.send(functionsObj.output(1, "DPARTNER_FETCH_SUCCESS", dpartner.data));
+    res.send(functionsObj.output(1, dpartner.message, dpartner.data));
     return;
   } catch (error) {
     next(error);
@@ -463,11 +463,11 @@ async function checkEmail(req: Request, res: Response, next: NextFunction) {
     const dpartner = await dpartnerObj.finddpartnerByEmail(email);
     const functionsObj = new functions();
     if (!dpartner || dpartner.error) {
-      res.status(404).send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
+      res.status(404).send(functionsObj.output(0, dpartner.message));
       return;
     }
 
-    res.status(200).send(functionsObj.output(1, "DPARTNER_EXISTS", dpartner.data));
+    res.status(200).send(functionsObj.output(1, dpartner.message, dpartner.data));
     return;
   } catch (error) {
     next(error);
@@ -488,11 +488,11 @@ async function deletedpartner(req: Request, res: Response, next: NextFunction) {
     const result = await dpartnerObj.deletedpartnerProfile(dpartnerId);
     const functionsObj = new functions();
     if (result.error) {
-      res.status(404).send(functionsObj.output(0, "DPARTNER_DELETE_ERROR"));
+      res.status(404).send(functionsObj.output(0, result.message));
       return;
     }
 
-    res.status(200).send(functionsObj.output(1, "DPARTNER_DELETE_SUCCESS", result.data));
+    res.status(200).send(functionsObj.output(1, result.message, result.data));
     return;
   } catch (error) {
     next(error);
@@ -529,11 +529,11 @@ async function dpartnerIsAvailable(req: Request, res: Response, next: NextFuncti
     const updateAvailability: any = await dpartnerObj.setdPartnerAvailable(dpartnerId, isAvailable);
     const functionsObj = new functions();
     if (updateAvailability.error) {
-      res.status(400).json(functionsObj.output(0, "DPARTNER_UPDATE_AVAILABLE_ERROR "));
+      res.status(400).json(functionsObj.output(0, updateAvailability.message));
       return;
     }
 
-    res.status(200).json(functionsObj.output(1, "DPARTNER_UPDATE_AVAILABLE_SUCCESS ", updateAvailability.data));
+    res.status(200).json(functionsObj.output(1, updateAvailability.message, updateAvailability.data));
     return;
   } catch (error) {
     next(error);

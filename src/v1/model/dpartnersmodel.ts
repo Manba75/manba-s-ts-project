@@ -2,8 +2,6 @@ import { appdb } from "./appdb";
 import { MailService } from "../library/sendMail";
 import { generateOTP } from "../library/generateOTP";
 import { dbVehicles } from "./vehiclemodel";
-
-
 export class dbDpartners extends appdb {
 vehiclemodel: dbVehicles;
 
@@ -26,16 +24,16 @@ async checkEmail(email: string) {
     const result = await this.allRecords("*");
 
     if (result.length === 0) {
-      return_data.message = "dpartner not found";
+      return_data.message = "DPARTNER_NOT_FOUND";
       return return_data;
     }
 
     return_data.error = false;
-    return_data.message = "login successfully";
+    return_data.message = "LOGIN_SUCCESSFULLY";
     return_data.data = result[0];
     return return_data;
   } catch (error) {
-    return_data.message = "Database error while fetching dpartner";
+    return_data.message = "DATABASE_ERROR_FETCHING_DPARTNER";
     return return_data;
   }
 }
@@ -70,12 +68,12 @@ async insertDpartner( city_id: number,vehicletype_id: number,dpartner_email: str
         };
         dpartnerResult = await this.updateRecord(dpartner.id, updateData);
         if (!dpartnerResult) {
-          return_data.message = "Failed to reactivate delivery partner.";
+          return_data.message = "FAILED_TO_REACTIVATE_DPARTNER";
           return return_data;
         }
         dpartner_id = dpartner.id;
       } else {
-        return_data.message = "email is already exists";
+        return_data.message = "EMAIL_ALREADY_EXISTS";
         return return_data;
       }
     } else {
@@ -97,7 +95,7 @@ async insertDpartner( city_id: number,vehicletype_id: number,dpartner_email: str
       };
       dpartnerResult = await this.insertRecord(insertData);
       if (!dpartnerResult) {
-        return_data.message = "Delivery partner could not be created.";
+        return_data.message = "FAILED_TO_CREATE_DPARTNER";
         return return_data;
       }
 
@@ -106,13 +104,13 @@ async insertDpartner( city_id: number,vehicletype_id: number,dpartner_email: str
 
     const vehicleResult = await this.vehiclemodel.insertOrUpdateVehicle(dpartner_id, vehicletype_id, vehicle_number, vehicle_name, dpartner_created_ip);
     if (vehicleResult.error) {
-      return_data.message = "Vehicle could not be created.";
+      return_data.message = "VEHICLE_INSERT_ERROR";
       return return_data;
     }
 
     await this.executeQuery("COMMIT");
     return_data.error = false;
-    return_data.message = "Delivery partner and vehicle created successfully";
+    return_data.message = "DPARTNER_CREATED_SUCCESSFULLY";
     return_data.data = { dpartnerResult, vehicle: vehicleResult.data };
     return return_data;
   } catch (error) {
@@ -135,14 +133,14 @@ async verifydpartnerOTP(email: string, otp: number | null) {
     let existingdpartner: any[] = await this.allRecords("*");
 
     if (existingdpartner.length === 0) {
-      return_data.message = "delivery partner not found.";
+      return_data.message = "DPARTNER_NOT_FOUND";
       return return_data;
     }
 
     let dpartner = existingdpartner[0];
 
     if (dpartner.dpartner_verifyotp !== otp) {
-      return_data.message = "Invalid OTP.";
+      return_data.message = "INVALID_OTP";
       return return_data;
     }
 
@@ -150,7 +148,7 @@ async verifydpartnerOTP(email: string, otp: number | null) {
     let currentTime = new Date();
 
     if (currentTime > storedExpiryTime) {
-      return_data.message = "OTP has expired.";
+      return_data.message = "OTP_EXPIRED";
       return return_data;
     }
 
@@ -162,16 +160,16 @@ async verifydpartnerOTP(email: string, otp: number | null) {
     let updateResult = await this.updateRecord(dpartner.id, updateData);
 
     if (!updateResult) {
-      return_data.message = "Error updating dpartner verification status.";
+      return_data.message = "ERROR_UPDATING_VERIFICATION_STATUS";
       return return_data;
     }
 
     return_data.error = false;
-    return_data.message = "dpartner verified successfully.";
+    return_data.message = "DPARTNER_VERIFIED_SUCCESSFULLY.";
     return_data.data = updateResult;
     return return_data;
   } catch (error) {
-    return_data.message = "Error verifying OTP.";
+    return_data.message = "ERROR_VERIFYING_OTP";
     return return_data;
   }
 }
@@ -189,7 +187,7 @@ async resendOTP(email: string) {
     let existingdpartner: any[] = await this.allRecords("*");
 
     if (existingdpartner.length === 0) {
-      return_data.message = "dpartner not found.";
+      return_data.message = "DPARTNER_NOT_FOUND";
       return return_data;
     }
 
@@ -205,14 +203,14 @@ async resendOTP(email: string) {
     };
     let updateResult = await this.updateRecord(dpartner.id, updateData);
     if (!updateResult) {
-      return_data.message = "not update otp.";
+      return_data.message = "ERROR_RESENDING_OTP";
       return return_data;
     }
     let mailService = new MailService();
     await mailService.sendOTPMail(email, newOTP);
 
     return_data.error = false;
-    return_data.message = "OTP resent successfully. Please check your email.";
+    return_data.message = "OTP_RESENT_SUCCESSFULLY";
     return return_data;
   } catch (error) {
     return_data.message = "Error while resending OTP.";
@@ -233,16 +231,16 @@ async finddpartnerByEmail(email: string) {
     let result = await this.allRecords("*");
 
     if (result.length === 0) {
-      return_data.message = "dpartner not found";
+      return_data.message = "DPARTNER_NOT_FOUND";
       return return_data;
     }
 
     return_data.error = false;
-    return_data.message = "login successfully";
+    return_data.message = "LOGIN_SUCCESSFULLY";
     return_data.data = result[0];
     return return_data;
   } catch (error) {
-    return_data.message = "Database error while fetching dpartner";
+    return_data.message = "DATABASE_ERROR_FETCHING_DPARTNER";
     return return_data;
   }
 }
@@ -263,14 +261,14 @@ async updateLastLogin(email: string) {
     let updateResult = await this.update(this.table, updateData, `WHERE dpartner_email = '${email}'`);
 
     if (!updateResult) {
-      return_data.message = "Failed to update last login";
+      return_data.message = "FAILED_TO_UPDATE_LAST_LOGIN ";
       return return_data;
     }
 
     return_data.error = false;
     return return_data;
   } catch (error) {
-    return_data.message = "Error updating last login";
+    return_data.message = "FAILED_TO_UPDATE_LAST_LOGIN ";
     return return_data;
   }
 }
@@ -298,7 +296,7 @@ async updateResetToken(email: string, resetToken: string | null, resetTokenExpir
     let updateResult = await this.update(this.table, updateData, `WHERE dpartner_email = '${email}'`);
 
     if (!updateResult) {
-      return_data.message = "failed to update resettoken";
+      return_data.message = "FAILED_TO_UPDATE_RESETTOKEN ";
       return return_data;
     }
 
@@ -306,7 +304,7 @@ async updateResetToken(email: string, resetToken: string | null, resetTokenExpir
     return_data.message = "Updated reset token";
     return return_data;
   } catch (error) {
-    return_data.message = "Error updating reset token";
+    return_data.message = "FAILED_TO_UPDATE_RESETTOKEN ";
     return return_data;
   }
 }
@@ -328,16 +326,16 @@ async updatePassword(email: string, password: string) {
     let updateResult = await this.update(this.table, updateData, `WHERE dpartner_email = '${email}'`);
 
     if (!updateResult || updateResult.rowCount === 0) {
-      return_data.message = "dpartner not found or password update failed.";
+      return_data.message = "ERROR_UPDATING_PASSWORD";
       return return_data;
     }
 
     return_data.error = false;
-    return_data.message = "Password updated successfully.";
+    return_data.message = "PASSWORD_UPDATED_SUCCESSFULLY";
     return_data.data = updateResult;
     return return_data;
   } catch (error) {
-    return_data.message = "Error updating password.";
+    return_data.message = "ERROR_UPDATING_PASSWORD";
     return return_data;
   }
 }
@@ -355,14 +353,14 @@ async getAlldpartner() {
     let dpartners = await this.allRecords("*");
 
     if (!dpartners || dpartners.length === 0) {
-      return_data.message = "No active dpartners found.";
+      return_data.message = "NO_ACTIVE_DPARTNERS_FOUND";
     }
     return_data.error = false;
     return_data.data = dpartners;
-    return_data.message = "Retrieved all active dpartner data successfully.";
+    return_data.message = "RETRIEVED_ALL_DPARTNERS_SUCCESSFULLY";
     return return_data;
   } catch (error) {
-    return_data.message = "Error fetching dpartner data.";
+    return_data.message = "ERROR_FETCHING_DPARTNERS";
     return return_data;
   }
 }
@@ -385,16 +383,16 @@ async updatedpartnerProfile(id: number, name: string, phone: string) {
     let updateResult = await this.update(this.table, updateData, `WHERE id = ${id} AND dpartner_is_deleted = false`);
 
     if (!updateResult || updateResult.rowCount === 0) {
-      return_data.message = "dpartner not found or profile update failed.";
+      return_data.message = "ERROR_UPDATING_PROFILE";
       return return_data;
     }
 
     return_data.error = false;
-    return_data.message = "Profile updated successfully.";
+    return_data.message = "PROFILE_UPDATED_SUCCESSFULLY";
     return_data.data = updateData;
     return return_data;
   } catch (error) {
-    return_data.message = "Error updating profile.";
+    return_data.message = "ERROR_UPDATING_PROFILE";
     return return_data;
   }
 }
@@ -412,16 +410,16 @@ async finddpartnerById(id: number) {
    
 
     if (!dpartnerResult || dpartnerResult.length === 0) {
-      return_data.message = "dpartner not found.";
+      return_data.message = "DPARTNER_NOT_FOUND";
       return return_data;
     }
 
     return_data.error = false;
-    return_data.message = "dpartner profile retrieved successfully.";
+    return_data.message = "DPARTNER_PROFILE_RETRIEVED_SUCCESSFULLY";
     return_data.data = dpartnerResult[0];
     return return_data;
   } catch (error) {
-    return_data.message = "Error fetching dpartner profile.";
+    return_data.message = "ERROR_FETCHING_DPARTNER_PROFILE";
     return return_data;
   }
 }
@@ -441,7 +439,7 @@ async deletedpartnerProfile(id: number) {
 
     if (existingDpartner.length === 0) {
       await this.executeQuery("ROLLBACK");
-      return_data.message = "Delivery partner not found or already deleted.";
+      return_data.message = "ERROR_FETCHING_DPARTNER_PROFILE ";
       return return_data;
     }
 
@@ -454,7 +452,7 @@ async deletedpartnerProfile(id: number) {
 
     if (!dpartnerResult) {
       await this.executeQuery("ROLLBACK");
-      return_data.message = "Failed to delete delivery partner.";
+      return_data.message = "FAILED_TO_DELETE_DPARTNER";
       return return_data;
     }
 
@@ -474,7 +472,7 @@ async deletedpartnerProfile(id: number) {
     return return_data;
   } catch (error) {
     await this.executeQuery("ROLLBACK");
-    return_data.message = "Error deleting delivery partner profile.";
+    return_data.message = "ERROR_DELETING_DPARTNER";
     return return_data;
   }
 }
@@ -488,15 +486,15 @@ async getAvailableDPartners() {
     const dpartners = await this.allRecords("*");
 
     if (!dpartners) {
-      return_data.message = "No available delivery partners found.";
+      return_data.message = "FAILED_TO_UPDATE_AVAILABILITY";
       return return_data;
     }
     return_data.error = false;
     return_data.data = dpartners;
-    return_data.message = "Retrieved all available delivery partners successfully.";
+    return_data.message = "RETRIEVED_ALL_AVAILABLE_DPARTNERS";
     return return_data;
   } catch (error) {
-    return_data.message = "Error fetching available delivery partners.";
+    return_data.message = "ERROR_FETCHING_AVAILABLE_DPARTNERS";
     return return_data;
   }
 }
@@ -516,17 +514,17 @@ async setdPartnerAvailable(dpartnerId: number, isAvailable: boolean) {
 
     if (!result) {
       await this.executeQuery("ROLLBACK");
-      return_data.message = "Failed to update delivery partner availability.";
+      return_data.message = "FAILED_TO_UPDATE_AVAILABILITY";
       return return_data;
     }
     await this.executeQuery("COMMIT");
 
     return_data.error = false;
     return_data.data = result;
-    return_data.message = "Delivery partner availability updated successfully.";
+    return_data.message = "AVAILABILITY_UPDATED_SUCCESSFULLY";
     return return_data;
   } catch (error) {
-    return_data.message = "Error setting delivery partner availability.";
+    return_data.message = "FAILED_TO_UPDATE_AVAILABILITY";
     await this.executeQuery("ROLLBACK");
     return return_data;
   }
