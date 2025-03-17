@@ -13,45 +13,50 @@ async checkVehicleType(vehicleType: string) {
   const checkResult = await this.allRecords("*");
 
   if (checkResult.length > 0) {
-    return_data.message = "Vehicle type already exists";
+    return_data.message = "VEHICLE_TYPE_EXISTS";
     return return_data;
   }
   return_data.error = false;
-  return_data.message = "Vehicle type available";
+  return_data.message = "VEHICLE_TYPE_FETCH_SUCCESS";
   return_data.data = checkResult.rows[0];
   return return_data;
 }
 
-async insertVehicleType(vehicletype: string, max_weight: number, createdIp: string) {
-  let return_data = { error: true, message: "", data: {} };
+async insertVehicleType(vehicletype: string, max_weight: number, createdIp: string,vehicletype_img: string) {
+  let return_data = { error: true, message: "", data: {}, };
 
   try {
+    await this.executeQuery("BEGIN");
     this.where = `WHERE vehicletype_type = '${vehicletype}'`;
     let existingVehicle: any[] = await this.allRecords("*");
 
     if (existingVehicle.length > 0) {
       const vehicle = existingVehicle[0];
       if (!vehicle.is_deleted) {
-        return_data.message = "Vehicle type already exists.";
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "VEHICLE_TYPE_EXISTS";
         return return_data;
       }
 
       let updateData = {
         vehicletype_max_weight: max_weight,
+        vehicletype_img: vehicletype_img,
         vehicletype_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
         vehicletype_created_ip: createdIp,
         is_deleted: false,
       };
 
       let updateResult = await this.update(this.table, updateData, `WHERE vehicletype_type = '${vehicletype}'`);
+      console.log(updateResult)
       if (!updateResult) {
-        return_data.message = "Vehicle type update error";
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "VEHICLE_TYPE_INSERT_ERROR";
         return return_data;
       }
 
       return_data.error = false;
       return_data.data = updateResult;
-      return_data.message = "Vehicle type reactivated successfully";
+      return_data.message = "VEHICLE_TYPE_INSERT_SUCCESS";
       return return_data;
     }
 
@@ -62,20 +67,26 @@ async insertVehicleType(vehicletype: string, max_weight: number, createdIp: stri
       vehicletype_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       vehicletype_created_ip: createdIp,
       is_deleted: false,
+      vehicletype_img: vehicletype_img,
     };
 
     let insertResult = await this.insertRecord(insertData);
+    console.log(insertResult)
     if (!insertResult) {
-      return_data.message = "Vehicle type creation error";
+      await this.executeQuery("ROLLBACK");
+      return_data.message = "VEHICLE_TYPE_INSERT_ERROR";
       return return_data;
     }
 
+
+    await this.executeQuery("COMMIT");
     return_data.error = false;
     return_data.data = insertResult;
-    return_data.message = "Vehicle type inserted successfully";
+    return_data.message = "VEHICLE_TYPE_INSERT_SUCCESS";
     return return_data;
   } catch (error) {
-    return_data.message = "Error inserting vehicle type";
+    await this.executeQuery("ROLLBACK");
+    return_data.message = "VEHICLE_TYPE_INSERT_ERROR";
     return return_data;
   }
 }
@@ -88,16 +99,16 @@ async getVehicleTypeById(id: number) {
     let result = await this.listRecords("*");
 
     if (result.length === 0) {
-      return_data.message = "Vehicle type not found";
+      return_data.message = "VEHICLE_TYPE_NOT_FOUND";
       return return_data;
     }
 
     return_data.error = false;
-    return_data.message = "Vehicle type retrieved successfully";
+    return_data.message = "VEHICLE_TYPE_FETCH_SUCCESS";
     return_data.data = result[0];
     return return_data;
   } catch (error) {
-    return_data.message = "Error retrieving vehicle type";
+    return_data.message = "VEHICLE_TYPE_FETCH_ERROR";
     return return_data;
   }
 }
@@ -109,10 +120,10 @@ async getAllVehicleTypes() {
     this.where = "WHERE is_deleted = FALSE";
     const result = await this.allRecords("*");
     return_data.error = false;
-    return_data.message = "Vehicle types retrieved successfully";
+    return_data.message = "VEHICLE_TYPES_FETCH_SUCCESS";
     return_data.data = result;
   } catch (error) {
-    return_data.message = "Error retrieving vehicle types";
+    return_data.message = "VEHICLE_TYPES_FETCH_ERROR";
   }
   return return_data;
 }
@@ -123,12 +134,12 @@ async getVehicleTypeIdByName(vehicletype: string) {
   const vehicletypeResult = await this.allRecords("id");
 
   if (vehicletypeResult.length === 0) {
-    return_data.message = "Vehicle type not found";
+    return_data.message = "VEHICLE_TYPE_NOT_FOUND";
     return return_data;
   }
 
   return_data.error = false;
-  return_data.message = "Vehicle type ID retrieved";
+  return_data.message = "VEHICLE_TYPE_FETCH_SUCCESS";
   return_data.data = vehicletypeResult[0];
   return return_data;
 }
@@ -150,7 +161,7 @@ async updateVehicleType(id: number, vehicletype: string, max_weight: number) {
   }
 
   return_data.error = false;
-  return_data.message = "Vehicle type updated successfully";
+  return_data.message = "VEHICLE_TYPE_UPDATED_SUCCESS";
   return_data.data = { id, ...updateData };
   return return_data;
 }
@@ -166,12 +177,12 @@ async deleteVehicleType(id: number) {
   const deleteResult = await this.update(this.table, deleteData, `WHERE id = ${id} AND is_deleted = FALSE`);
 
   if (!deleteResult) {
-    return_data.message = `No vehicle type found with ID ${id}`;
+    return_data.message = "VEHICLE_TYPE_NOT_FOUND";
     return return_data;
   }
 
   return_data.error = false;
-  return_data.message = "Vehicle type deleted successfully";
+  return_data.message = "VEHICLE_TYPE_DELETE_SUCCESS";
   return_data.data = deleteResult;
   return return_data;
 }

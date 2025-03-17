@@ -4,10 +4,12 @@ import { dbVehicleType } from "../model/vehicletypemodel";
 import { functions } from "../library/functions";
 import Joi from "joi";
 import { validations } from "../library/validations";
+import { deleteFromCloudinary, extractPublicIdFromUrl, uploadOnCloudinary } from "../library/cloudinary";
+import { upload } from "../library/multer";
 
 const router = express.Router();
 
-router.post("/create", vehicleTypeValidation, createVehicleTypeController);
+router.post("/create",upload.single("vehicletype_img"), vehicleTypeValidation, createVehicleTypeController);
 router.get("/vehicletype",idValidation, getVehicleTypeByIdController);
 router.get("/vehicletypes", getAllVehicleTypesController);
 router.put("/update", vehicleTypeValidation,idValidation,updateVehicleTypeController);
@@ -46,17 +48,27 @@ async function createVehicleTypeController(req: Request, res: Response, next: Ne
     const { vehicletype, max_weight } = req.body;
     const createdIp = requestIp.getClientIp(req) || "";
 
-    const vehicleType: any = await vehicleTypeObj.insertVehicleType(vehicletype, max_weight, createdIp);
+     if (!req.file || !req.file.path) {
+          res.status(400).send(functionsObj.output(0, "VEHICLE_TYPE_IMAGE_REQUIRED"));
+          return;
+        }
+        const cloudinaryUrl = await uploadOnCloudinary(req.file.path,"vehicletype_images");
+        if (!cloudinaryUrl) {
+          res.status(400).send(functionsObj.output(0, "VEHICLE_TYPE_IMAGE_UPLOAD_ERROR"));
+          return;
+        }
 
-    if (!vehicleType.error) {
-      res.send(functionsObj.output(0, "VEHICLE_TYPE_INSERT_ERROR", vehicleType.message));
+    let vehicleType = await vehicleTypeObj.insertVehicleType(vehicletype, max_weight, createdIp,cloudinaryUrl.url);
+    console.log(vehicleType)
+    if (vehicleType.error) {
+      res.send(functionsObj.output(0,  vehicleType.message));
       return;
     }
 
-    res.send(functionsObj.output(1, "VEHICLE_TYPE_INSERT_SUCCESS", vehicleType.data));
+    res.send(functionsObj.output(1, vehicleType.message, vehicleType.data));
     return;
   } catch (error: any) {
-    res.send(functionsObj.output(0, "VEHICLE_TYPE_INSERT_ERROR", error));
+    res.send(functionsObj.output(0, error.message, error));
     return;
   }
 }
@@ -66,10 +78,10 @@ function idValidation(req: Request, res: Response, next: NextFunction) {
   const validationsObj = new validations();
   const schema = Joi.object({
     id: Joi.number().integer().min(1).required().messages({
-      "number.base": "City ID must be a number",
-      "number.integer": "City ID must be an integer",
-      "number.min": "City ID must be greater than 0",
-      "any.required": "City ID is required"
+      "number.base": "vehicletype ID must be a number",
+      "number.integer": "vehicletype ID must be an integer",
+      "number.min": "vehicletype ID must be greater than 0",
+      "any.required": "vehicletype ID is required"
     }),
   });
 
@@ -89,14 +101,14 @@ async function getVehicleTypeByIdController(req: Request, res: Response, next: N
     const vehicleType: any = await vehicleTypeObj.getVehicleTypeById(id);
 
     if (!vehicleType) {
-      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      res.send(functionsObj.output(0, vehicleType.message));
       return;
     }
 
-    res.send(functionsObj.output(1, "VEHICLE_TYPE_FETCH_SUCCESS", vehicleType.data));
+    res.send(functionsObj.output(1, vehicleType.message, vehicleType.data));
     return;
   } catch (error: any) {
-    res.send(functionsObj.output(0, "VEHICLE_TYPE_FETCH_ERROR", error));
+    res.send(functionsObj.output(0, error.message, error));
     return;
   }
 }
@@ -109,15 +121,15 @@ async function getAllVehicleTypesController(req: Request, res: Response, next: N
     const vehicleTypes: any = await vehicleTypeObj.getAllVehicleTypes();
 
     if (vehicleTypes.error || vehicleTypes.length === 0) {
-      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      res.send(functionsObj.output(0, vehicleTypes.message));
       return;
     }
 
-    res.send(functionsObj.output(1, "VEHICLE_TYPES_FETCH_SUCCESS", vehicleTypes.data));
+    res.send(functionsObj.output(1, vehicleTypes.message, vehicleTypes.data));
     return;
   } catch (error: any) {
    
-    res.send(functionsObj.output(0, "VEHICLE_TYPES_FETCH_ERROR", error));
+    res.send(functionsObj.output(0, error.message, error));
     return;
   }
 }
@@ -131,18 +143,18 @@ async function updateVehicleTypeController(req: Request, res: Response, next: Ne
 
     const { id,vehicletype, max_weight } = req.body;
 
-    const updatedVehicleType: any = await vehicleTypeObj.updateVehicleType(id, vehicletype, max_weight);
+    let updatedVehicleType: any = await vehicleTypeObj.updateVehicleType(id, vehicletype, max_weight);
 
     if (updatedVehicleType.error) {
-      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      res.send(functionsObj.output(0, updatedVehicleType.message));
       return;
     }
 
-    res.send(functionsObj.output(1, "VEHICLE_TYPE_UPDATE_SUCCESS", updatedVehicleType.data));
+    res.send(functionsObj.output(1, updatedVehicleType.message, updatedVehicleType.data));
     return;
   } catch (error: any) {
     
-    res.send(functionsObj.output(0, "VEHICLE_TYPE_UPDATE_ERROR", error));
+    res.send(functionsObj.output(0, error.message, error));
     return;
   }
 }
@@ -154,17 +166,30 @@ async function deleteVehicleTypeController(req: Request, res: Response, next: Ne
   try {
     const { id } = req.body;
 
-    const deletedVehicleType: any = await vehicleTypeObj.deleteVehicleType(id);
+    const vehicletype: any = await vehicleTypeObj.getVehicleTypeById(id);
+        if (!vehicletype || !vehicletype.data) {
+          res.status(404).send(functionsObj.output(0,vehicletype.message));
+          return;
+        }
+        let imageUrl = vehicletype.data.vehicletype_img;
+        if (imageUrl) {
+          const publicId = extractPublicIdFromUrl(imageUrl);
+          if (publicId) {
+           await deleteFromCloudinary(publicId);
+          } 
+        }
+
+    let deletedVehicleType: any = await vehicleTypeObj.deleteVehicleType(id);
 
     if (deletedVehicleType.error) {
-      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
+      res.send(functionsObj.output(0, deletedVehicleType.message));
       return;
     }
 
-    res.send(functionsObj.output(1, "VEHICLE_TYPE_DELETE_SUCCESS",deletedVehicleType.data));
+    res.send(functionsObj.output(1, deletedVehicleType.message,deletedVehicleType.data));
     return;
   } catch (error: any) {
-    res.send(functionsObj.output(0, "VEHICLE_TYPE_DELETE_ERROR", error));
+    res.send(functionsObj.output(0, error.message, error));
     return;
   }
 }
