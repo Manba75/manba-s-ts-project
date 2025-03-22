@@ -92,10 +92,10 @@ async function placeOrder(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    const orderResponse: any = await orderObj.orderPlace(id, vehicletype_id.data.id, pickup, drop, order_charge, createdip);
+    let orderResponse: any = await orderObj.orderPlace(id, vehicletype_id.data.id, pickup, drop, order_charge, createdip);
 
     if (orderResponse.error || !orderResponse.data) {
-      res.send(functionsObj.output(0, "ORDER_INSERT_ERROR"));
+      res.send(functionsObj.output(0, orderResponse.message));
       return;
     }
 
@@ -111,7 +111,7 @@ async function placeOrder(req: Request, res: Response, next: NextFunction) {
       });
     });
 
-    res.send(functionsObj.output(1, "ORDER_INSERT_SUCCESS", orderResponse.data));
+    res.send(functionsObj.output(1, orderResponse, orderResponse.data));
     return;
   } catch (error: any) {
     next(error);

@@ -13,6 +13,11 @@ let app = express();
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors({
+  origin: 'http://localhost:4200', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 var customersObj = new dbcustomers();
 var dpartnerObj = new dbDpartners();
@@ -45,7 +50,7 @@ export async function authenticateCustomer(req: Request, res: Response, next: Ne
     }
 
     const user = await customersObj.findUserById(decoded.id);
-
+   console.log("user",user)
     if (!user) {
       return_data.message = "User not found";
       res.send(functionsObj.output(0, return_data.message));
@@ -108,7 +113,7 @@ export async function dpartnerAuthenticate(req: Request, res: Response, next: Ne
 
 app.use("/v1/customer", require("./controller/customercontroller"));
 app.use("/v1/city", require('./controller/citycontroller'));
-app.use("/v1/vehicletypes", require("./controller/vehicletypecontroller"));
+app.use("/v1/vehicletype", require("./controller/vehicletypecontroller"));
 app.use("/v1/dpartner", require("./controller/dpartnercontroller"));
 app.use("/v1/order", require("./controller/ordercontroller"));
 

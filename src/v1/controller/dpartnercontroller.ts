@@ -16,7 +16,7 @@ import { generateOTP } from "../library/generateOTP";
 const router = express.Router();
 
 router.post("/signup", signupSchema, signup);
-router.post("/verify-otp", verifyOTPSchema, verifydpartnerOTP);
+router.post("/verify-otp",verifyOTPSchema, verifydpartnerOTP);
 router.post("/resend-otp", resendOTPSchema, resendOTPController);
 router.post("/login", loginSchema, login);
 router.post("/forgot-password", emailSchema, forgotPassword);
@@ -63,7 +63,7 @@ function signupSchema(req: Request, res: Response, next: NextFunction) {
     vehicle_number: Joi.string().trim().replace(/'/g, "").messages({
       "string.empty": "License number is required"
     }),
-    dpartner_phone: Joi.string().replace(/'/g, "").trim().length(10).pattern(/^[0-9]+$/).required().messages({
+    dpartner_phone: Joi.string().replace(/'/g, "").trim().max(10).pattern(/^[0-9]+$/).required().messages({
       "string.empty": "Phone number is required",
       "string.length": "Phone number must be exactly 10 digits",
       "string.pattern.base": "Phone number must only contain numbers"
@@ -81,47 +81,35 @@ function signupSchema(req: Request, res: Response, next: NextFunction) {
 async function signup(req: Request, res: Response, next: NextFunction) {
   try {
     const { city, vehicletype, dpartner_email, dpartner_pass, dpartner_licence, dpartner_phone, vehicle_number, vehicle_name } = req.body;
-    const createdip: string | null = requestIp.getClientIp(req) || "";
+    
+    const createdip: string = requestIp.getClientIp(req) || "";
     const otp: number = generateOTP();
     const hashpassword: string = await bcrypt.hash(dpartner_pass, 10);
-    let cityObj = new dbCity();
-    let vehicletypeObj = new dbVehicleType();
+    
     let dpartnerObj = new dbDpartners();
-    let functionsObj = new functions();
     let mailService = new MailService();
+    let functionsObj = new functions();
 
-    let city_id: any = await cityObj.getCityIdByCityName(city);
-    if (city_id.error) {
-      res.send(functionsObj.output(0, city_id.message));
+    // Call insertDpartner and get result
+    let result :any= await dpartnerObj.insertDpartner(city, vehicletype, dpartner_email, hashpassword, createdip, dpartner_licence, dpartner_phone, vehicle_number, vehicle_name, otp);
+    console.log(result.data);
+    if (result.error) {
+      res.send(functionsObj.output(0, result.message));
       return;
     }
 
-    let vehicleType_id: any = await vehicletypeObj.getVehicleTypeIdByName(vehicletype);
-    if (vehicleType_id.error) {
-      res.send(functionsObj.output(0, vehicleType_id.message));
-      return;
-    }
-
-    let newdpartner: any = await dpartnerObj.insertDpartner(city_id.data, vehicleType_id.data.id, dpartner_email, hashpassword, createdip, dpartner_licence, dpartner_phone, vehicle_number, vehicle_name, otp);
-    if (newdpartner.error) {
-      res.send(functionsObj.output(0, newdpartner.message));
-      return;
-    }
-
+    // Send OTP mail
     await mailService.sendOTPMail(dpartner_email, otp);
-    const token: string | null = generateTokenAndSetCookies(res, newdpartner.data.id);
-    if (!token) {
-      res.send(functionsObj.output(0, "TOKEN_ERROR"));
-      return;
-    }
-
-    res.send(functionsObj.output(1, newdpartner.message, newdpartner.data));
-    return;
+    
+    // Generate token & set cookie
+    
+ 
+    res.send(functionsObj.output(1, result.message, {user:result.data}));
   } catch (error: any) {
     next(error);
-    return;
   }
 }
+
 
 function verifyOTPSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
@@ -150,12 +138,17 @@ async function verifydpartnerOTP(req: Request, res: Response, next: NextFunction
     const { email, otp } = req.body;
     let dpartnerObj = new dbDpartners();
     let functionsObj = new functions();
-    const result = await dpartnerObj.verifydpartnerOTP(email, otp);
+    const result :any = await dpartnerObj.verifydpartnerOTP(email, otp);
     if (result.error) {
       res.send(functionsObj.output(0, result.message));
       return;
     }
-    res.send(functionsObj.output(1, result.message, result.data));
+    const token: string | null = generateTokenAndSetCookies(res, result.data.updateResult)
+    if (!token) {
+      res.send(functionsObj.output(0, "TOKEN_ERROR"));
+      return;
+    }
+    res.send(functionsObj.output(1, result.message, {user:result.data,token}));
     return;
   } catch (error) {
     next(error);
@@ -223,29 +216,15 @@ async function login(req: Request, res: Response, next: NextFunction) {
     const { email, password } = req.body;
     let dpartnerObj = new dbDpartners();
     let functionsObj = new functions();
-    const dpartnerResponse: any = await dpartnerObj.finddpartnerByEmail(email);
-    if (dpartnerResponse.error) {
-      res.send(functionsObj.output(0, dpartnerResponse.message));
-      return;
-    }
+    
+    
+    let logindpartner: any = await dpartnerObj.logindpartner(email, password);
 
-    const dpartner = dpartnerResponse.data;
-    const isMatch = await bcrypt.compare(password, dpartner.dpartner_password);
-    if (!isMatch) {
-      res.send(functionsObj.output(0, "EMAIL_PASSWORD_MATCH_ERROR"));
+    if (logindpartner.error) {
+      res.send(functionsObj.output(0, logindpartner.message));
       return;
     }
-
-    if (!dpartner.dpartner_isverify) {
-      res.send(functionsObj.output(0, "EMAIL_VERIFIED_FAIL"));
-      return;
-    }
-
-    const updateLastLoginResponse: any = await dpartnerObj.updateLastLogin(email);
-    if (updateLastLoginResponse.error) {
-      res.send(functionsObj.output(0, "DPARTNERS_LOGIN_FAIL"));
-      return;
-    }
+    let  dpartner=logindpartner.data;
 
     const token = generateTokenAndSetCookies(res, dpartner.id);
     if (!token) {
@@ -253,7 +232,7 @@ async function login(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    res.send(functionsObj.output(1,"DPARTNERS_LOGIN_SUCCESS", { token, dpartner }));
+    res.send(functionsObj.output(1,logindpartner.message, {dpartner,token}));
     return;
   } catch (error) {
     next(error);
@@ -266,24 +245,14 @@ async function forgotPassword(req: Request, res: Response, next: NextFunction) {
     const { email } = req.body;
     let dpartnerObj = new dbDpartners();
     let functionsObj = new functions();
-    let mailService = new MailService();
-    const dpartner: any = await dpartnerObj.finddpartnerByEmail(email);
-    if (dpartner.error) {
-      res.send(functionsObj.output(0, dpartner.message));
+    
+    let forgotpassword=await dpartnerObj.dpartnerforgotPassword(email);
+    if(forgotpassword.error){
+      res.send(functionsObj.output(0, forgotpassword.message));
       return;
     }
-
-    const resetToken = jwt.sign({ reset: true } as object, process.env.JWT_SECRET as string, { expiresIn: "10m" });
-    const resetTokenExpiry = new Date(Date.now() + 10 * 60000).toISOString().replace("T", " ").slice(0, -1);
-    const updateToken: any = await dpartnerObj.updateResetToken(email, resetToken, resetTokenExpiry);
-    if (updateToken.error) {
-      res.send(functionsObj.output(0, "FORGOT_PASSWORD_ERROR"));
-      return;
-    }
-
-    const resetLink = `http://localhost:8000/v1/dpartner/reset-password?token=${resetToken}&email=${email}`;
-    await mailService.sendResetLink(email, resetLink);
-    res.send(functionsObj.output(1, "FORGOT_PASSWORD_SUCCESS", { resetLink }));
+    
+    res.send(functionsObj.output(1, "FORGOT_PASSWORD_SUCCESS", forgotpassword.data));
     return;
   } catch (error) {
     next(error);
@@ -297,18 +266,15 @@ function resetPasswordSchema(req: Request, res: Response, next: NextFunction) {
       "string.empty": "Email is required",
       "string.email": "Invalid email format"
     }),
-    newPassword: Joi.string().pattern(new RegExp("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().trim().replace(/'/g, "").messages({
+    password: Joi.string().pattern(new RegExp("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().trim().replace(/'/g, "").messages({
       "string.base": "Password must be a string",
       "string.empty": "Password is required",
       "string.pattern.base": "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
     }),
-    confirmPassword: Joi.string().required().valid(Joi.ref("newPassword")).replace(/'/g, "").messages({
+    confirmpassword: Joi.string().required().valid(Joi.ref("password")).replace(/'/g, "").messages({
       "any.only": "Confirm password must match new password",
       "string.empty": "Confirm password is required"
-    }),
-    resetToken: Joi.string().required().trim().replace(/'/g, "").messages({
-      "string.empty": "Token is required"
-    }),
+    })
   });
 
   let validationsObj = new validations();
@@ -323,29 +289,9 @@ async function resetPassword(req: Request, res: Response, next: NextFunction) {
   try {
     var dpartnerObj = new dbDpartners();
     var functionsObj = new functions();
-    const { email, newPassword, confirmPassword, resetToken } = req.body;
-
-    const dpartner: any = await dpartnerObj.finddpartnerByEmail(email);
-    if (dpartner.error || !dpartner.data) {
-      res.send(functionsObj.output(0, "DPARTNER_NOT_FOUND"));
-      return;
-    }
-
-    const { dpartner_resettoken, dpartner_resettoken_expiry } = dpartner.data;
-    if (!dpartner_resettoken || resetToken !== dpartner_resettoken) {
-      res.send(functionsObj.output(0, "Invalid or expired token."));
-      return;
-    }
-
-    let expiryTime = new Date(dpartner_resettoken_expiry + " UTC");
-    const currentTime = new Date();
-    if (currentTime > expiryTime) {
-      res.send(functionsObj.output(0, "Token has expired."));
-      return;
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const updateSuccess: any = await dpartnerObj.updatePassword(email, hashedPassword);
+    const {email, password, confirmpassword ,token} = req.body;
+   
+    const updateSuccess: any = await dpartnerObj.updatePassword(email, password,token);
     if (updateSuccess.error) {
       res.send(functionsObj.output(0, updateSuccess.message));
       return;
@@ -460,14 +406,14 @@ async function checkEmail(req: Request, res: Response, next: NextFunction) {
   try {
     const { email } = req.body;
     var dpartnerObj = new dbDpartners();
-    const dpartner = await dpartnerObj.finddpartnerByEmail(email);
+    let dpartner = await dpartnerObj.finddpartnerByEmail(email);
     const functionsObj = new functions();
-    if (!dpartner || dpartner.error) {
-      res.status(404).send(functionsObj.output(0, dpartner.message));
+    if (dpartner.error) {
+      res.send(functionsObj.output(0, dpartner.message));
       return;
     }
 
-    res.status(200).send(functionsObj.output(1, dpartner.message, dpartner.data));
+    res.send(functionsObj.output(1, dpartner.message, dpartner.data));
     return;
   } catch (error) {
     next(error);

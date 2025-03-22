@@ -36,28 +36,31 @@ async insertVehicleType(vehicletype: string, max_weight: number, createdIp: stri
         await this.executeQuery("ROLLBACK");
         return_data.message = "VEHICLE_TYPE_EXISTS";
         return return_data;
-      }
-
-      let updateData = {
-        vehicletype_max_weight: max_weight,
-        vehicletype_img: vehicletype_img,
-        vehicletype_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
-        vehicletype_created_ip: createdIp,
-        is_deleted: false,
-      };
-
-      let updateResult = await this.update(this.table, updateData, `WHERE vehicletype_type = '${vehicletype}'`);
-      console.log(updateResult)
-      if (!updateResult) {
-        await this.executeQuery("ROLLBACK");
-        return_data.message = "VEHICLE_TYPE_INSERT_ERROR";
+      }else{
+        let updateData = {
+          vehicletype_max_weight: max_weight,
+         
+          vehicletype_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
+          vehicletype_created_ip: createdIp,
+          is_deleted: false,
+          vehicletype_img: vehicletype_img,
+        };
+  
+        let updateResult = await this.update(this.table, updateData, `WHERE vehicletype_type = '${vehicletype}'`);
+        console.log(updateResult)
+        if (!updateResult) {
+          await this.executeQuery("ROLLBACK");
+          return_data.message = "VEHICLE_TYPE_INSERT_ERROR";
+          return return_data;
+        }
+  
+        return_data.error = false;
+        return_data.data = updateResult;
+        return_data.message = "VEHICLE_TYPE_INSERT_SUCCESS";
         return return_data;
       }
 
-      return_data.error = false;
-      return_data.data = updateResult;
-      return_data.message = "VEHICLE_TYPE_INSERT_SUCCESS";
-      return return_data;
+
     }
 
     let insertData = {
@@ -117,15 +120,23 @@ async getAllVehicleTypes() {
   let return_data = { error: true, message: "", data: { result: new Array() } };
 
   try {
-    this.where = "WHERE is_deleted = FALSE";
-    const result = await this.allRecords("*");
+    this.where = "WHERE is_deleted = false";
+    let result = await this.allRecords("*");
+    
+
+    if(result.length === 0) {
+      return_data.message = "VEHICLE_TYPES_NOT_FOUND";
+      return  return_data;
+    }
     return_data.error = false;
     return_data.message = "VEHICLE_TYPES_FETCH_SUCCESS";
     return_data.data = result;
+    return return_data;
   } catch (error) {
     return_data.message = "VEHICLE_TYPES_FETCH_ERROR";
+    return return_data;
   }
-  return return_data;
+ 
 }
 
 async getVehicleTypeIdByName(vehicletype: string) {
@@ -167,7 +178,7 @@ async updateVehicleType(id: number, vehicletype: string, max_weight: number) {
 }
 
 async deleteVehicleType(id: number) {
-  let return_data = { error: true, message: "", data: {} };
+  let return_data = { error: true, message: "", data: 0 };
 
   const deleteData = {
     is_deleted: true,

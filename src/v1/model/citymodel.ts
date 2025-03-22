@@ -55,27 +55,29 @@ async insertCity(city: string, state: string, createdIp: string, cityImagePath: 
             await this.executeQuery("ROLLBACK");
             return_data.message = "CITY_EXISTS";
             return return_data;
-          }
-  
-          let updateData = {
-            city_img: cityImagePath,
-            is_deleted: false,
-            city_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
-            city_created_ip: createdIp,
-          };
-  
-          let updateResult = await this.updateRecord(cityRecord.id, updateData);
-          if (!updateResult) {
-            await this.executeQuery("ROLLBACK");
-            return_data.message = "CITY_INSERT_ERROR";
+          }else{
+            let updateData = {
+              city_img: cityImagePath,
+              is_deleted: false,
+              city_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
+              city_created_ip: createdIp,
+            };
+    
+            let updateResult = await this.updateRecord(cityRecord.id, updateData);
+            if (!updateResult) {
+              await this.executeQuery("ROLLBACK");
+              return_data.message = "CITY_INSERT_ERROR";
+              return return_data;
+            }
+    
+            await this.executeQuery("COMMIT");
+            return_data.error = false;
+            return_data.data = updateResult;
+            return_data.message = "CITY_INSERT_SUCCESS";
             return return_data;
           }
   
-          await this.executeQuery("COMMIT");
-          return_data.error = false;
-          return_data.data = updateResult;
-          return_data.message = "CITY_INSERT_SUCCESS";
-          return return_data;
+          
         }
   
        

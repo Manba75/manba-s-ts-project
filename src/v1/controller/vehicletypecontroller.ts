@@ -25,11 +25,11 @@ function vehicleTypeValidation(req: Request, res: Response, next: NextFunction) 
       "string.min": "Vehicle type must be at least 2 characters.",
       "string.max": "Vehicle type must be at most 50 characters.",
     }),
-    max_weight: Joi.number().positive().required().messages({
-      "number.base": "Max weight must be a number.",
-      "number.positive": "Max weight must be a positive number.",
-      "any.required": "Max weight is required.",
-    }),
+    // max_weight: Joi.number().positive().required().messages({
+    //   "number.base": "Max weight must be a number.",
+    //   "number.positive": "Max weight must be a positive number.",
+    //   "any.required": "Max weight is required.",
+    // }),
   });
 
   const validationsObj = new validations();
@@ -118,9 +118,9 @@ async function getAllVehicleTypesController(req: Request, res: Response, next: N
   const functionsObj = new functions();
   const vehicleTypeObj = new dbVehicleType();
   try {
-    const vehicleTypes: any = await vehicleTypeObj.getAllVehicleTypes();
+    let vehicleTypes = await vehicleTypeObj.getAllVehicleTypes();
 
-    if (vehicleTypes.error || vehicleTypes.length === 0) {
+    if (vehicleTypes.error) {
       res.send(functionsObj.output(0, vehicleTypes.message));
       return;
     }
