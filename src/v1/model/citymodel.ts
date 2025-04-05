@@ -285,10 +285,10 @@ async insertCity(city: string, state: string, createdIp: string, cityImagePath: 
 
     try {
       this.where=`WHERE city_name IN ('${pickupCity}', '${dropCity}') AND is_deleted = FALSE`;
-      let cityResult: any = await this.allRecords( "id, city_name, city_state_name")
+      let cityResult: any = await this.allRecords( "*")
       
-
-      if (!cityResult || !Array.isArray(cityResult) || cityResult.length < 2) {
+       console.log("cityr",cityResult)
+      if (!cityResult || !Array.isArray(cityResult) || cityResult.length === 0) {
         return_data.message = "CITY_NOT_FOUND";
         return return_data;
       }
@@ -300,9 +300,13 @@ async insertCity(city: string, state: string, createdIp: string, cityImagePath: 
         return_data.message = "CITY_FETCH_ERROR";
         return return_data;
       }
-
+    //  console.log("city",)
       return_data.error = false;
       return_data.message = "CITY_FETCH_SUCCESS.";
+      return_data.data = {
+        pickupCityDetails: return_data.data.pickupCityDetails,
+        dropCityDetails: return_data.data.dropCityDetails,
+      };
       return return_data;
     } catch (error) {
       return_data.message = "CITY_FETCH_ERROR";

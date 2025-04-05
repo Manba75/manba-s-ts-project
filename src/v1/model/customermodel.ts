@@ -7,13 +7,17 @@ import { Socket } from "socket.io";
 import { generateTokenAndSetCookies } from "v1/library/generateTokenAndSetCookies";
 import jwt from "jsonwebtoken";
 import { dbCity } from "./citymodel";
+import { dbaddress } from "./addressmodel";
+import { error } from "console";
 export class dbcustomers extends appdb {
   citymodel: dbCity;
+  addressmodel:dbaddress
   constructor() {
     super();
     this.table = "customers";
     this.uniqueField = "id";
     this.citymodel = new dbCity();
+    this.addressmodel=new dbaddress();
   }
 
 
@@ -238,62 +242,148 @@ async findUserByEmail(email: string) {
 
   /** login user */
 
-async loginUser(email: string, password: string) {
+  async loginUser(
+    email: string,
+    password: string,
+    latitude: string,
+    longitude: string,
+    city: string,
+    street: string,
+    flatno: string,
+    landmark: string,
+    pincode: string
+  ) {
     let return_data = {
       error: true,
       message: "",
       data: {} as any,
     };
-
+  
     try {
-    
+      await this.executeQuery("BEGIN");
+  
+     
       let userResponse = await this.findUserByEmail(email);
-          if (userResponse.error) {
-            return_data.message = "CUSTOMER_NOT_FOUND";
-            return return_data;
-           
-          }
-          let user =  userResponse.data;
-          const isMatch = await bcrypt.compare(password, user.cust_password);
-          if (!isMatch) {
-            return_data.message = "EMAIL_PASSWORD_MATCH_ERROR";
-            return return_data;
-           
-          }
-          if (!user.cust_isverify) {
-            return_data.message = "CUSTOMER_NOT_VERIFIED";
-            return return_data;
-         
-          }
-          const updateLastLoginResponse: any = await this.updateLastLogin(email);
-          if (updateLastLoginResponse.error) {
-            return_data.message = "CUSTOMER_LOGIN_ERROR";
-            return return_data;
+      if (userResponse.error) {
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "CUSTOMER_NOT_FOUND";
+        return return_data;
+      }
+  
+      let user = userResponse.data;
+  
+      const isMatch = await bcrypt.compare(password, user.cust_password);
+      if (!isMatch) {
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "EMAIL_PASSWORD_MATCH_ERROR";
+        return return_data;
+      }
+  
+     
+      if (!user.cust_isverify) {
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "CUSTOMER_NOT_VERIFIED";
+        return return_data;
+      }
+  
+     
+      let cityData: any = await this.citymodel.getCityIdByCityName(city);
+  
+      if (cityData.error) {
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "CITY_NOT_FOUND";
+        return return_data;
+      }
+      let city_id = cityData.data;
+  
+     
+      let userAddress = {
+        phone: user.cust_phone || "",
+        street: street || "",
+        flatno: flatno || "",
+        landmark: landmark || "",
+        pincode: pincode || "",
+        latitude: latitude || "",
+        longitude: longitude || "",
+      };
+  
+      let addressDetails: any;
+  
+      let existingAddress :any= await this.addressmodel.getExistingAddress(user.id, city_id, userAddress, "home");
+  
+      if (existingAddress.error || !existingAddress.data) {
         
-          }
-          let updatesocketid: any = await this.updateSocketId(user.id,user.socketId);
-          if (updatesocketid.error) {
-            return_data.message = "CUSTOMER_LOGIN_ERROR";
+        let insertedAddress = await this.addressmodel.insertAddress(city_id, user.id, userAddress, "home", user.cust_created_ip);
+        console.log(" Inserting New Address:", JSON.stringify(userAddress, null, 2));
+  
+        if (insertedAddress.error) {
+          await this.executeQuery("ROLLBACK");
+          return_data.message = "ADDRESS_INSERT_ERROR";
+          return return_data;
+        }
+  
+        console.log(" New Address Inserted:", insertedAddress.data);
+        addressDetails = insertedAddress.data;
+      } else {
+        
+        let existingLat = existingAddress.data.address_latitude;
+        let existingLong = existingAddress.data.address_longitude;
+  
+        // console.log(`Existing Lat: ${existingLat}, Existing Long: ${existingLong}`);
+        // console.log(` New Lat: ${latitude}, New Long: ${longitude}`);
+  
+        if (existingLat !== latitude || existingLong !== longitude) {
+          let updateAddress = await this.addressmodel.updateAddress(user.id, userAddress);
+          if (updateAddress.error) {
+            await this.executeQuery("ROLLBACK");
+            return_data.message = "ADDRESS_UPDATE_ERROR";
             return return_data;
-         
           }
-          
-          
+  
+          // console.log("Existing Address Updated:", existingAddress.data.id);
+          addressDetails = userAddress;
+        } else {
+          // console.log(" Address already up to date, no update needed.");
+          addressDetails = existingAddress.data;
+        }
+      }
+  
+     
+      let updateLastLoginResponse = await this.updateLastLogin(email);
+      if (updateLastLoginResponse.error) {
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "CUSTOMER_LOGIN_ERROR";
+        return return_data;
+      }
+  
+    
+      let updatesocketid = await this.updateSocketId(user.id, user.socketId);
+      if (updatesocketid.error) {
+        await this.executeQuery("ROLLBACK");
+        return_data.message = "CUSTOMER_LOGIN_ERROR";
+        return return_data;
+      }
+  
       let Socketid = updatesocketid.data;
+      await this.executeQuery("COMMIT");
+  
+      // Final Response
       return_data.error = false;
       return_data.message = "CUSTOMER_LOGIN_SUCCESS";
-      return_data.data = {
-       user,
-        Socketid:Socketid
-      }
-    
+      return_data.data = { user, Socketid, address: addressDetails };
+  
       return return_data;
-
     } catch (error) {
+      console.error(" Login Error:", error);
+      await this.executeQuery("ROLLBACK");
       return_data.message = "CUSTOMER_LOGIN_ERROR";
       return return_data;
     }
   }
+  
+  
+
+
   /**
    * Update last login timestamp
    */
@@ -485,7 +575,7 @@ async getAllUser() {
   }
 
   //update profile
-  async updateUserprofile(id: number, name: string, phone: string, street: string, flatno: string, landmark: string, city: string, zip: string, latitude: number, longitude: number) {
+  async updateUserprofile(id: number, cust_name: string, cust_phone: string, street: string, flatno: string, landmark: string, city_name: string, pincode: string, latitude: number, longitude: number) {
     let return_data = {
         error: true,
         message: "",
@@ -494,8 +584,8 @@ async getAllUser() {
 
     try {
         let updateData = {
-            cust_name: name,
-            cust_phone: phone,
+            cust_name: cust_name,
+            cust_phone: cust_phone,
             cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
         };
         
@@ -505,21 +595,25 @@ async getAllUser() {
             return_data.message = "CUSTOMER_UPDATE_PROFILE_ERROR";
             return return_data;
         }
-
+        let citydata= await this.citymodel.getCityIdByCityName(city_name);
+        if(citydata.error){
+            return_data.message = "CITY_NOT_FOUND";
+            return return_data;
+        }
         // Store updated address in address table
         let addressData = {
             cust_id: id,
             address_street :street,
             address_flatno: flatno,
             address_landmark: landmark,
-            address_city_id: await this.citymodel.getCityIdByCityName(city), // Store city in city table
-            address_pincode: zip,
+            address_city_id:citydata.data  ,
+            address_pincode: pincode,
             address_latitude: latitude,
             address_longitude: longitude,
-            updated_on: new Date().toISOString().replace("T", " ").slice(0, -1)
+            address_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1)
         };
-
-        await this.insert("address", addressData);
+        this.where=`WHERE cust_id=${id} AND is_deleted=false AND address_type='home'`
+        await this.update("address", addressData, this.where);
 
 
         return_data.error = false;
@@ -592,27 +686,29 @@ async getAllUser() {
   }
 
   //update socket id
-  async updateSocketId(customerId: number, socketId: string) {
+  async updateSocketId(id: number, socketId: string) {
   
      let return_data = {
        error: true,
        message: "",
        data: {} as any,
      };
-
+ 
      try {
       let updateData= { socket_id: socketId }
   
-      let userResult = await this.updateRecord(customerId, updateData);
+      let userResult = await this.updateRecord(id, updateData);
 
        if (!userResult || userResult.length === 0) {
          return_data.message = "CUSTOMER_UPDATE_SOCKETID_ERROR";
          return return_data;
        }
+       console.log("socketId",socketId)
+        console.log("userResult",updateData)
 
        return_data.error = false;
        return_data.message = "CUSTOMER_UPDATE_SOCKETID_SUCCESS";
-       return_data.data = userResult[0]; 
+       return_data.data = updateData; 
        return return_data;
      } catch (error) {
       
@@ -644,6 +740,110 @@ async getAllUser() {
     } catch (error) {
       
       return_data.message = "CUSTOMER_SOCKETID_FETCH_ERROR";
+      return return_data;
+    }
+  }
+  
+  // get user profile with address
+  async getUserProfile(id: number) {
+    let return_data = {
+      error: true,
+      message: "",
+      data: {} as any,
+    };
+  
+    try {
+      let query = `
+        SELECT 
+          u.id AS cust_id, 
+          u.cust_name AS cust_name, 
+          u.cust_email AS cust_email, 
+          u.cust_phone AS cust_phone, 
+         a.id AS address_id, 
+         a.address_street AS street, 
+         a.address_flatno AS flatno, 
+         a.address_landmark AS landmark, 
+         a.address_pincode AS pincode, 
+         a.address_latitude AS latitude,
+         a.address_longitude AS longitude,
+        a.address_city_id AS city_id,
+        c.city_name AS city_name
+       
+        FROM customers u
+        LEFT JOIN address a ON u.id = a.cust_id 
+        LEFT JOIN cities c ON a.address_city_id = c.id 
+        WHERE u.id = ${id} 
+       
+      `;
+  
+     
+      let userResult = await this.executeQuery(query); // Execute query using `executeQuery`
+  
+      if (!userResult || userResult.length === 0) {
+        return_data.message = "CUSTOMER_NOT_FOUND";
+        return return_data;
+      }
+  
+      return_data.error = false;
+      return_data.message = "CUSTOMER_FETCH_SUCCESS";
+      return_data.data = userResult[0]; 
+      return return_data;
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      return_data.message = "CUSTOMER_FETCH_ERROR";
+      return return_data;
+    }
+  }
+  
+  //removeCustomer socketId
+  async removeCustomerSocketId(id: number) {  
+    let return_data={error:true,message:"",data:{}};
+    try{
+      let updateData = {
+        socket_id: null,
+        cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
+      };
+  
+      let userResult = await this.updateRecord(id,updateData);
+  
+      if (!userResult) {
+        return_data.message = "CUSTOMER_REMOVE_SOCKETID_ERROR";
+        return return_data;
+      }
+  
+      return_data.error = false;
+      return_data.message = "CUSTOMER_REMOVE_SOCKETID_SUCCESS";
+      return_data.data = updateData; 
+      return return_data;
+
+    }catch(error){
+      return_data.message="CUSTOMER_REMOVE_SOCKETID_ERROR"
+    }
+  }
+
+  async getCustomerBySocketId(socketId: string) {
+    let return_data = {
+      error: true,
+      message: "",
+      data: {} as any,
+    };
+
+    try {
+      this.where = `WHERE socket_id = '${socketId}'`;
+      let userResult = await this.allRecords("*");
+
+      if (!userResult || userResult.length === 0) {
+        return_data.message = "CUSTOMER_NOT_FOUND";
+        return return_data;
+      }
+
+      return_data.error = false;
+      return_data.message = "CUSTOMER_FETCH_SUCCESS";
+      return_data.data = userResult[0]; 
+      return return_data;
+    } catch (error) {
+    
+      return_data.message = "CUSTOMER_FETCH_ERROR";
       return return_data;
     }
   }

@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response } from "express";
 import Joi from "joi";
-import { functions } from "../library/functions";
+import { functions } from '../library/functions';
 import { validations } from "../library/validations";
 import { dbcustomers } from "../model/customermodel";
 import requestIp from "request-ip";
@@ -23,6 +23,7 @@ router.get("/get-profile", authenticateCustomer, getOneUser);
 router.put("/update-profile", authenticateCustomer, updateProfileSchema, updateUserProfile);
 router.post("/check-email", emailSchema, checkEmail);
 router.put("/delete-profile/:id", authenticateCustomer, deleteUser);
+router.get("/customer-get-by-id", authenticateCustomer, getCustomerById);
 
 module.exports = router;
 
@@ -49,7 +50,7 @@ function signupSchema(req: Request, res: Response, next: NextFunction) {
 
 async function signup(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password ,confirmpassword } = req.body;
+    const { email, password ,confirmpassword} = req.body;
     const createdip: string | null = requestIp.getClientIp(req) || "";
     const otp: number = generateOTP();
     const hashpassword: string = await bcrypt.hash(password, 10);
@@ -91,19 +92,18 @@ async function verifyUserOTP(req: Request, res: Response, next: NextFunction) {
   var functionsObj = new functions();
   try {
     const { email, otp } = req.body;
-    // const { email } = req.params;
     const result :any= await customersObj.verifyUserOTP(email, otp);
     if (result.error) {
       res.send(functionsObj.output(0, result.message));
       return;
     }
-    console.log("result",result.data)
-    const token: string | null = generateTokenAndSetCookies(res, result.data.updateResult);
+    
+    const token: string | null = generateTokenAndSetCookies(res, result.data.user.id);
     if (!token) {
       res.send(functionsObj.output(0, "TOKEN_ERROR"));
       return;
     }
-    res.send(functionsObj.output(1, result.message, {user:result.data,token}));
+    res.send(functionsObj.output(1, result.message, {user:result.data.user,token}));
     return;
   } catch (error) {
     res.send(functionsObj.output(0, "USER_VERIFIED_ERROR ", error));
@@ -147,9 +147,38 @@ async function resendOTPController(req: Request, res: Response, next: NextFuncti
 //login schema
 function loginSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } }).lowercase().trim().required().replace(/'/g, "").messages({ "string.empty": "Email is required.", "string.email": "Invalid email format." }),
-    password: Joi.string().pattern(new RegExp("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$")).required().trim().messages({ "string.base": "Password must be a string", "string.empty": "Password is required", "string.pattern.base": "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character." }),
-  
+    email: Joi.string()
+      .email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } })
+      .lowercase()
+      .trim()
+      .required()
+      .messages({
+        "string.empty": "Email is required.",
+        "string.email": "Invalid email format.",
+      }),
+
+    password: Joi.string()
+      .pattern(new RegExp("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,15}$"))
+      .required()
+      .trim()
+      .messages({
+        "string.base": "Password must be a string",
+        "string.empty": "Password is required",
+        "string.pattern.base": "Password must be 8-15 characters long, include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.",
+      }),
+
+    // latitude: Joi.string().required().messages({ "any.required": "Latitude is required." }),
+    // longitude: Joi.string().required().messages({ "any.required": "Longitude is required." }),
+    city: Joi.string().required().messages({ "any.required": "City is required." }).optional(),
+
+    flatno: Joi.string().optional(),
+    street: Joi.string().optional(),
+    landmark: Joi.string().optional(),
+    pincode: Joi.string().pattern(/^\d{5,6}$/).optional().messages({
+      "string.pattern.base": "Zip code must be 5-6 digits.",
+    }),
+    phone: Joi.string().length(10).pattern(/^[0-9]+$/).optional().messages({
+      "string.length": "Phone number must be exactly 10 digits",   })
   });
 
   let validationsObj = new validations();
@@ -164,27 +193,31 @@ function loginSchema(req: Request, res: Response, next: NextFunction) {
 async function login(req: Request, res: Response, next: NextFunction) {
   var functionsObj = new functions();
   try {
-    const { email, password,socketid} = req.body;
+      const { email, password, socketid, latitude, longitude, city ,street,flatno,landmark,pincode} = req.body;
+      let loginuser = await customersObj.loginUser(email, password, latitude, longitude, city,street,flatno,landmark,pincode);
+      
+      if (loginuser.error) {
+          res.send(functionsObj.output(0, loginuser.message));
+          return;
+      }
 
-     let loginuser= await customersObj.loginUser(email,password);
-     if(loginuser.error){
-      res.send(functionsObj.output(0, loginuser.message));
+      let user = loginuser.data.user;
+      let address = loginuser.data.address; 
+
+      const token = generateTokenAndSetCookies(res, user.id);
+      if (!token) {
+          res.send(functionsObj.output(0, "TOKEN_ERROR"));
+          return;
+      }
+
+      res.send(functionsObj.output(1, loginuser.message, { user, token, address }));
       return;
-     }
-    let user = loginuser.data;
-  
-    const token = generateTokenAndSetCookies(res, user.id);
-    if (!token) {
-      res.send(functionsObj.output(0, "TOKEN_ERROR"));
-      return;
-    }
-    res.send(functionsObj.output(1,loginuser.message,{user,token}));
-    return;
   } catch (error) {
-    next(error);
-    return;
+      next(error);
+      return;
   }
 }
+
 
 //forgotpassword 
 async function forgotPassword(req: Request, res: Response, next: NextFunction) {
@@ -264,8 +297,8 @@ async function getAllUsers(req: Request, res: Response, next: NextFunction) {
 // updateschema
 function updateProfileSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    name: Joi.string().min(2).max(50).trim().replace(/'/g, "").messages({ "string.empty": "name is required" }),
-    phone: Joi.string().length(10).pattern(/^[0-9]+$/).required().replace(/'/g, "").trim().messages({ "string.empty": "Phone number is required", "string.length": "Phone number must be exactly 10 digits", "string.pattern.base": "Phone number must only contain numbers" }),
+    cust_name: Joi.string().min(2).max(50).trim().replace(/'/g, "").messages({ "string.empty": "name is required" }),
+    cust_phone: Joi.string().length(10).pattern(/^[0-9]+$/).required().replace(/'/g, "").trim().messages({ "string.empty": "Phone number is required", "string.length": "Phone number must be exactly 10 digits", "string.pattern.base": "Phone number must only contain numbers" }),
   });
 
   let validationsObj = new validations();
@@ -280,10 +313,10 @@ function updateProfileSchema(req: Request, res: Response, next: NextFunction) {
 async function updateUserProfile(req: Request, res: Response, next: NextFunction) {
   var functionsObj = new functions();
   try {
-      const { name, phone,  street, flatno, landmark, city, zip, latitude, longitude } = req.body;
+      const { cust_name, cust_phone,  street, flatno, landmark, city_name, pincode, latitude, longitude } = req.body;
       const id = req.body.user.id;
       
-      const result = await customersObj.updateUserprofile(id, name, phone, street, flatno, landmark, city, zip, latitude, longitude);
+      const result = await customersObj.updateUserprofile(id, cust_name, cust_phone, street, flatno, landmark, city_name, pincode, latitude, longitude);
       
       if (result.error) {
           res.send(functionsObj.output(0, result.message));
@@ -307,7 +340,7 @@ async function getOneUser(req: Request, res: Response, next: NextFunction) {
       return;
     }
     const userId = req.body.user.id;
-    const user = await customersObj.findUserById(userId);
+    const user = await customersObj.getUserProfile(userId);
     if (!user || user.error) {
       res.send(functionsObj.output(0, user.message));
       return;
@@ -373,5 +406,21 @@ async function deleteUser(req: any, res: Response, next: NextFunction) {
   } catch (error) {
     next(error);
     return;
+  }
+}
+
+//get customer by id 
+async function getCustomerById(req: Request, res: Response, next: NextFunction) {
+  try {
+    var functionsObj = new functions();
+    const {id} = req.body
+    const customer = await customersObj.findUserById(id);
+    if (customer.error) {
+      res.status(404).send(functionsObj.output(0, customer.message));
+      return;
+    }
+    res.status(200).send(functionsObj.output(1, customer.message, customer.data))
+  } catch (error) {
+    next(error);
   }
 }

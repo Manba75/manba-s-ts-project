@@ -19,8 +19,9 @@ router.post("/place-order", authenticateCustomer, orderSchema, placeOrder);
 router.post("/accept-order", dpartnerAuthenticate, acceptOrder);
 router.post("/verify-pickup-otp", dpartnerAuthenticate, verifyPickupOtp);
 router.put("/update-status", dpartnerAuthenticate, updateStatusSchema, updateOrderStatus);
-router.get("/get-all-order", getAllorders);
+router.get("/get-orders", getAllorders);
 router.get("/get-customer-order", authenticateCustomer, getOrders);
+router.get("/get-order-by-id/:id", authenticateCustomer, getOrderById);
 
 module.exports = router;
 
@@ -51,7 +52,7 @@ function orderSchema(req: Request, res: Response, next: NextFunction) {
       latitude: Joi.number().required().messages({ "number.base": "Drop latitude is required." }),
       longitude: Joi.number().required().messages({ "number.base": "Drop longitude is required." }),
     }).required(),
-    order_charge: Joi.number().required().messages({ "number.base": "Order charge is required." }),
+    // order_charge: Joi.number().required().messages({ "number.base": "Order charge is required." }),
   });
 
   const validationsObj = new validations();
@@ -70,7 +71,7 @@ async function placeOrder(req: Request, res: Response, next: NextFunction) {
   const dpartnerObj = new dbDpartners();
   try {
     const { id } = req.body.user;
-    const { vehicletype, pickup, drop, order_charge } = req.body;
+    const { vehicletype, pickup, drop } = req.body;
     if (!req.body.user.id) {
       res.send(functionsObj.output(0, "CUSTOMER_NOT_FOUND"));
       return;
@@ -78,40 +79,26 @@ async function placeOrder(req: Request, res: Response, next: NextFunction) {
 
     const createdip: string | null = requestIp.getClientIp(req) || "";
 
-    const vehicletypeany: any = await VehicletypeObj.getVehicleTypeIdByName(vehicletype);
+   
 
-    if (vehicletypeany.error || !vehicletypeany.data) {
-      res.send(functionsObj.output(0, "VEHICLE_TYPE_NOT_FOUND"));
-      return;
-    }
-
-    const vehicletype_id = vehicletypeany;
+    // const vehicletype_id = vehicletypes.data.id;
     const availablePartners: any = await dpartnerObj.getAvailableDPartners();
     if (availablePartners.error) {
       res.send(functionsObj.output(0, "DPARTNER_AVAILABILITY_ERROR"));
       return;
     }
+    // let order_charge= vehicletype.data.vehicletype_price;
 
-    let orderResponse: any = await orderObj.orderPlace(id, vehicletype_id.data.id, pickup, drop, order_charge, createdip);
+    let orderResponse: any = await orderObj.orderPlace(id, vehicletype,pickup, drop, createdip);
 
     if (orderResponse.error || !orderResponse.data) {
       res.send(functionsObj.output(0, orderResponse.message));
       return;
     }
+  
+   
 
-    const orderId = orderResponse.data.id;
-    let activeDpartners = availablePartners.data;
-
-    activeDpartners.forEach((partner: any) => {
-      io.to(`delivery_partner_${partner.id}`).emit("new_order_any", {
-        orderId,
-        pickup,
-        drop,
-        order_charge,
-      });
-    });
-
-    res.send(functionsObj.output(1, orderResponse, orderResponse.data));
+    res.send(functionsObj.output(1, orderResponse.message, orderResponse.data));
     return;
   } catch (error: any) {
     next(error);
@@ -125,9 +112,9 @@ function updateStatusSchema(req: Request, res: Response, next: NextFunction) {
       "number.base": "Order ID must be a number.",
       "any.required": "Order ID is required.",
     }),
-    status: Joi.string().valid("pending", "accepted", "in-progress", "delivered").required().messages({
+    status: Joi.string().valid("pending", "accepted","pickup","in-progress", "delivered").required().messages({
       "string.base": "Status must be a string.",
-      "any.only": "Invalid status. Allowed values: pending, accepted, in-progress, delivered.",
+      "any.only": "Invalid status. Allowed values: pending, accepted,pickup, in-progress, delivered.",
       "any.required": "Status is required.",
     }),
   });
@@ -146,59 +133,31 @@ async function acceptOrder(req: Request, res: Response) {
   const orderObj = new dborders();
   const customerObj = new dbcustomers();
   const dpartnerObj = new dbDpartners();
+  
   try {
     const { orderId } = req.body;
     const dpartnerId = req.body.user.id;
    
-
-    const orderResponse: any = await orderObj.getOrderById(orderId);
-    const order: any = orderResponse.data;
-
-    if (!order || orderResponse?.error) {
-      res.send(functionsObj.output(0, "ORDER_NOT_FOUND"));
+    let acceptorderResponse: any = await orderObj.acceptOrder(orderId, dpartnerId);
+    if (acceptorderResponse.error) {
+      res.send(functionsObj.output(0, acceptorderResponse.message));
       return;
     }
+    let order= acceptorderResponse.data
+    console.log("order",acceptorderResponse)
+    // Emit Event to Customer via Socket.io
+    // const customerSocketId: any = await customerObj.getCustomerSocketId(order.cust_id);
+    // if (customerSocketId?.data?.id) {
+    //   io.to(customerSocketId.data.id).emit("order_accepted", { orderId, dpartnerId });
+    // }
 
-    const custId = order.cust_id;
-    const customerResponse: any = await customerObj.findUserById(custId);
-    const customer: any = customerResponse.data;
-
-    if (!customer || customerResponse?.error) {
-      res.send(functionsObj.output(0, "CUSTOMER_NOT_FOUND"));
-      return;
-    }
-
-    const customerEmail = customer.cust_email;
-
-    let assigndpartner: any = await orderObj.assignDeliveryPartner(orderId, dpartnerId);
-    if (assigndpartner.error) {
-      res.send(functionsObj.output(0, "DPARTNER_AVAILABILITY_ERROR"));
-      return;
-    }
-
-    let otp: number = generateOTP();
-    let otpExpiryTime: string | null = new Date(Date.now() + 60 * 60000).toISOString().replace("T", " ").slice(0, -1);
-
-    const saveOtp = await orderObj.updateOrderOTP(order.id, otp, otpExpiryTime);
-    if (saveOtp.error) {
-      res.send(functionsObj.output(0, saveOtp.message));
-      return;
-    }
-
-    await dpartnerObj.setdPartnerAvailable(dpartnerId, false);
-    let mailService = new MailService();
-    await mailService.sendOrderOTPMail(orderId, customerEmail, otp);
-
-    const customerSocketId: any = await customerObj.getCustomerSocketId(order.cust_id);
-    if (customerSocketId?.data.id) {
-      io.to(customerSocketId.data.id).emit("order_accepted", { orderId, dpartnerId });
-    }
-
-    res.send(functionsObj.output(1, "DPARTNER_AVAILABILITY_SUCCESS", assigndpartner.data));
-    return;
+    // Return Response
+    res.send(functionsObj.output(1, "ORDER_ACCEPTED_SUCCESSFULLY", acceptorderResponse.data));
+    return
   } catch (error) {
-    res.send(functionsObj.output(0, "ORDER_FETCH_ERROR"));
-    return;
+    console.error("Order Accept Error:", error);
+    res.send(functionsObj.output(0, "ORDER_ACCEPT_ERROR"));
+    return
   }
 }
 
@@ -208,24 +167,11 @@ async function verifyPickupOtp(req: Request, res: Response) {
   const orderObj = new dborders();
   try {
     const { orderId, otp } = req.body;
-    const orderResponse: any = await orderObj.getOrderById(orderId);
-    const order: any = orderResponse?.data;
+   
 
-    if (orderResponse.error || order.order_verifyotp !== otp) {
-      res.send(functionsObj.output(0, "INVALID_OTP"));
-      return;
-    }
-
-    let storedExpiryTime = new Date(order.order_expiryotp + " UTC");
-    let currentTime = new Date();
-    if (currentTime > storedExpiryTime) {
-      res.send(functionsObj.output(0, "OTP is expired."));
-      return;
-    }
-
-    const verifyorder: any = await orderObj.updateOrderStatus(orderId, "pickup", req.body.user.id);
+    const verifyorder: any = await orderObj.verifypickupOTP(orderId, otp );
     if (verifyorder.error) {
-      res.send(functionsObj.output(0, "OTP_VERIFY_ERROR",verifyorder.message));
+      res.send(functionsObj.output(0, verifyorder.message,verifyorder.message));
       return;
     }
     
@@ -238,7 +184,7 @@ async function verifyPickupOtp(req: Request, res: Response) {
     //     status: "pickup",
     //   });
     // }
-    res.send(functionsObj.output(1, "OTP_VERIFY_SUCCESS",verifyorder.data));
+    res.send(functionsObj.output(1, verifyorder.message, verifyorder.data));
     return;
   } catch (error) {
     res.send(functionsObj.output(0, "OTP_VERIFY_ERROR"));
@@ -269,10 +215,10 @@ async function updateOrderStatus(req: Request, res: Response) {
 
     const order: any = await orderObj.getOrderById(orderId);
 
-    const customerSocketId: any = await customerObj.getCustomerSocketId(order.data.cust_id);
-    if (customerSocketId.data.id) {
-      io.to(customerSocketId.data.id).emit("order_status_update", { orderId });
-    }
+    // const customerSocketId: any = await customerObj.getCustomerSocketId(order.data.cust_id);
+    // if (customerSocketId.data.id) {
+    //   io.to(customerSocketId.data.id).emit("order_status_update", { orderId });
+    // }
 
     res.send(functionsObj.output(1, "ORDER_UPDATE_SUCCESS", updateResponse.data));
     return;
@@ -293,6 +239,7 @@ async function getOrders(req: Request, res: Response, next: NextFunction) {
     }
 
     const customerId = req.body.user.id;
+    console.log("cust",customerId)
     const result = await orderObj.getCustomerOrders(customerId);
 
     if (!result || result.error) {
@@ -319,11 +266,32 @@ async function getAllorders(req: Request, res: Response, next: NextFunction) {
       res.send(functionsObj.output(0, "ORDER_NOT_FOUND"));
       return;
     }
-
-    res.send(functionsObj.output(1, "ORDERS_FETCH_SUCCESS", result.data));
+    let orders=result.data
+    res.send(functionsObj.output(1, "ORDERS_FETCH_SUCCESS", orders));
     return;
   } catch (error) {
     console.error("Error fetching user:", error);
     next(error);
+  }
+}
+
+// get  order by id 
+async function getOrderById(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
+  const orderObj = new dborders();
+
+  try {
+  let orderId = parseInt(req.params.id); 
+    const result :any = await orderObj.getOrderById(orderId); 
+
+    if (!result || result.error) {
+      res.send(functionsObj.output(0, "ORDER_NOT_FOUND")); 
+      return;
+    }
+
+    res.send(functionsObj.output(1, "ORDER_FETCH_SUCCESS", result.data));
+  } catch (error) {
+    console.error("ORDER_FETCH_ERROR", error);
+    next(error); 
   }
 }

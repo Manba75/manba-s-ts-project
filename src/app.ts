@@ -15,12 +15,18 @@ if (result.error) throw result.error;
 const port: number = Number(process.env.PORT) || 5000;
 
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*",
-    
-  },
-});
+const io = new Server(httpServer,
+  {
+    cors: {
+      origin: ['http://localhost:4200'],  // ✅ Ensure this matches your frontend URL exactly
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'Authorization'], // ✅ These are correct
+      exposedHeaders: ['Authorization'], // ✅ Allow frontend to access Authorization header
+      credentials: true
+    },
+      
+}
+);
 
 initSocket(io);
 

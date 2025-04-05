@@ -49,7 +49,7 @@ public async sendResetLink(email: string, resetLink: string){
   }
 
   // Send OTP for order verification
-public async sendOrderOTPMail( orderId: string,email: string,otp: number){
+public async sendOrderOTPMail( orderId:number,email: string,otp: number){
     await this.transporter.sendMail({
       from: `"Your Company Name" <${process.env.USER_EMAIL}>`,
       to: email,

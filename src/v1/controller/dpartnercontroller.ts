@@ -22,12 +22,12 @@ router.post("/login", loginSchema, login);
 router.post("/forgot-password", emailSchema, forgotPassword);
 router.post("/reset-password", resetPasswordSchema, resetPassword);
 router.get("/get-dpartners", getAlldpartners);
-router.get("/get-profile/:id", dpartnerAuthenticate, getOnedpartner);
+router.get("/get-profile", dpartnerAuthenticate, getOnedpartner);
 router.put("/update-profile", dpartnerAuthenticate, updateProfileSchema, updatedpartnerProfile);
 router.post("/check-email", emailSchema, checkEmail);
 router.put("/delete-profile/:id", dpartnerAuthenticate, deletedpartner);
-router.put("/isAvailable", dpartnerAuthenticate, AvailabilitySchema, dpartnerIsAvailable);
-
+router.post("/isavailable", dpartnerAuthenticate, AvailabilitySchema, dpartnerIsAvailable);
+router.get("/get-available-dpartner", dpartnerAuthenticate, getavailabledpartner);
 module.exports = router;
 
 function signupSchema(req: Request, res: Response, next: NextFunction) {
@@ -213,7 +213,7 @@ function loginSchema(req: Request, res: Response, next: NextFunction) {
 
 async function login(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password } = req.body;
+    const { email, password ,socketId} = req.body;
     let dpartnerObj = new dbDpartners();
     let functionsObj = new functions();
     
@@ -224,8 +224,8 @@ async function login(req: Request, res: Response, next: NextFunction) {
       res.send(functionsObj.output(0, logindpartner.message));
       return;
     }
-    let  dpartner=logindpartner.data;
-
+    let  dpartner :any =logindpartner.data.dpartner;
+   console.log("dpartner",dpartner);
     const token = generateTokenAndSetCookies(res, dpartner.id);
     if (!token) {
       res.send(functionsObj.output(0, "TOKEN_ERROR"));
@@ -324,10 +324,10 @@ async function getAlldpartners(req: Request, res: Response, next: NextFunction) 
 
 function updateProfileSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    name: Joi.string().min(2).max(50).trim().replace(/'/g, "").messages({
+    dpartner_name: Joi.string().min(2).max(50).trim().replace(/'/g, "").messages({
       "string.empty": "name is required"
     }),
-    phone: Joi.string().length(10).pattern(/^[0-9]+$/).required().replace(/'/g, "").trim().messages({
+    dpartner_phone: Joi.string().length(10).pattern(/^[0-9]+$/).required().replace(/'/g, "").trim().messages({
       "string.empty": "Phone number is required",
       "string.length": "Phone number must be exactly 10 digits",
       "string.pattern.base": "Phone number must only contain numbers"
@@ -344,11 +344,12 @@ function updateProfileSchema(req: Request, res: Response, next: NextFunction) {
 
 async function updatedpartnerProfile(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, phone } = req.body;
+    const {dpartner_name,dpartner_phone,dpartner_licence_number,city_name,vehicletype_type,vehicle_name,vehicle_number } = req.body;
     const id = req.body.user.id;
+    console.log(req.body);
     let dpartnerObj = new dbDpartners();
     let functionsObj = new functions();
-    const result = await dpartnerObj.updatedpartnerProfile(id, name, phone);
+    const result = await dpartnerObj.updatedpartnerProfile(id,dpartner_name,dpartner_licence_number,dpartner_phone,city_name,vehicletype_type,vehicle_number,vehicle_name);
     if (result.error) {
       res.send(functionsObj.output(0, result.message));
       return;
@@ -371,7 +372,7 @@ async function getOnedpartner(req: Request, res: Response, next: NextFunction) {
 
     const dpartnerId = req.body.user.id;
     const dpartnerObj = new dbDpartners();
-    const dpartner = await dpartnerObj.finddpartnerById(dpartnerId);
+    const dpartner = await dpartnerObj.getDpartnerProfile(dpartnerId);
     const functionsObj = new functions();
     if (!dpartner || dpartner.error) {
       res.send(functionsObj.output(0, dpartner.message));
@@ -448,7 +449,7 @@ async function deletedpartner(req: Request, res: Response, next: NextFunction) {
 
 function AvailabilitySchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
-    isAvailable: Joi.boolean().required().messages({
+    isavailable: Joi.boolean().required().messages({
       "boolean.base": "Availability must be a boolean value.",
       "any.required": "Availability status is required",
     }),
@@ -470,9 +471,10 @@ async function dpartnerIsAvailable(req: Request, res: Response, next: NextFuncti
       return;
     }
     const dpartnerId = req.body.user.id;
-    const { isAvailable } = req.body;
+    console.log("d",dpartnerId);
+    const { isavailable } = req.body;
     const dpartnerObj = new dbDpartners();
-    const updateAvailability: any = await dpartnerObj.setdPartnerAvailable(dpartnerId, isAvailable);
+    const updateAvailability: any = await dpartnerObj.setdPartnerAvailable(dpartnerId, isavailable);
     const functionsObj = new functions();
     if (updateAvailability.error) {
       res.status(400).json(functionsObj.output(0, updateAvailability.message));
@@ -486,3 +488,22 @@ async function dpartnerIsAvailable(req: Request, res: Response, next: NextFuncti
     return;
   }
 }
+
+async function getavailabledpartner(req: Request, res: Response, next: NextFunction) {
+  const functionsObj = new functions();
+  try {
+    const dpartnerObj = new dbDpartners();
+   
+    const availabledpartner :any  = await dpartnerObj.getAvailableDPartners();
+    if (availabledpartner.error) {
+      res.send(functionsObj.output(0, availabledpartner.message));
+      return;
+    }
+    res.send(functionsObj.output(1, availabledpartner.message, availabledpartner.data));
+    return;
+  }catch (error) {
+    res.status(500).send(functionsObj.output(0, "INTERNAL_SERVER_ERROR"));
+    return;
+  }
+}
+

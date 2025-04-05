@@ -142,7 +142,7 @@ async getAllVehicleTypes() {
 async getVehicleTypeIdByName(vehicletype: string) {
   let return_data = { error: true, message: "", data: {} };
   this.where = `WHERE vehicletype_type = '${vehicletype}'`;
-  const vehicletypeResult = await this.allRecords("id");
+  const vehicletypeResult = await this.allRecords("*");
 
   if (vehicletypeResult.length === 0) {
     return_data.message = "VEHICLE_TYPE_NOT_FOUND";
