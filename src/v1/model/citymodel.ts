@@ -300,7 +300,7 @@ async insertCity(city: string, state: string, createdIp: string, cityImagePath: 
         return_data.message = "CITY_FETCH_ERROR";
         return return_data;
       }
-    //  console.log("city",)
+   
       return_data.error = false;
       return_data.message = "CITY_FETCH_SUCCESS.";
       return_data.data = {

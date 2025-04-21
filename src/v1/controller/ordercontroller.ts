@@ -30,28 +30,28 @@ function orderSchema(req: Request, res: Response, next: NextFunction) {
   const schema = Joi.object({
     vehicletype: Joi.string().required().messages({ "string.empty": "Vehicle type is required." }),
     pickup: Joi.object({
-      city: Joi.string().required().messages({ "string.empty": "Pickup city is required." }),
-      flatno: Joi.string().required().messages({ "string.empty": "Pickup flat number is required." }),
-      street: Joi.string().required().messages({ "string.empty": "Pickup street is required." }),
+      city: Joi.string().required().default('').messages({ "string.empty": "Pickup city is required." }),
+      flatno: Joi.string().default('10').optional(),
+      street: Joi.string().default('').optional(),
       landmark: Joi.string().optional(),
       pincode: Joi.string().required().messages({ "string.empty": "Pickup pincode is required." }),
       phone: Joi.string().required().messages({ "string.empty": "Pickup phone number is required." }),
       state: Joi.string().required().messages({ "string.empty": "Pickup state is required." }),
       latitude: Joi.number().required().messages({ "number.base": "Pickup latitude is required." }),
       longitude: Joi.number().required().messages({ "number.base": "Pickup longitude is required." }),
-    }).required(),
+    }),
     
     drop: Joi.object({
       city: Joi.string().required().messages({ "string.empty": "Drop city is required." }),
-      flatno: Joi.string().required().messages({ "string.empty": "Drop flat number is required." }),
-      street: Joi.string().required().messages({ "string.empty": "Drop street is required." }),
+      flatno: Joi.string().optional().default('20'),
+      street: Joi.string().optional().default('0'),
       landmark: Joi.string().optional(),
       pincode: Joi.string().required().messages({ "string.empty": "Drop pincode is required." }),
       phone: Joi.string().required().messages({ "string.empty": "Drop phone number is required." }),
       state: Joi.string().required().messages({ "string.empty": "Drop state is required." }),
       latitude: Joi.number().required().messages({ "number.base": "Drop latitude is required." }),
       longitude: Joi.number().required().messages({ "number.base": "Drop longitude is required." }),
-    }).required(),
+    }),
     // order_charge: Joi.number().required().messages({ "number.base": "Order charge is required." }),
   });
 

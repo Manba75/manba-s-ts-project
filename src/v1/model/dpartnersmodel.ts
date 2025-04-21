@@ -22,7 +22,7 @@ export class dbDpartners extends appdb {
   }
 
   // Check email
-  async checkEmail(email: string) {
+async checkEmail(email: string) {
     let return_data = {
       error: true,
       message: "",
@@ -45,39 +45,39 @@ export class dbDpartners extends appdb {
       return_data.message = "DATABASE_ERROR_FETCHING_DPARTNER";
       return return_data;
     }
-  }
+}
 
-  // Signup
-  async insertDpartner(city: string, vehicletype: string, dpartner_email: string, dpartner_pass: string, dpartner_created_ip: string, dpartner_licence: string, dpartner_phone: string, vehicle_number: string, vehicle_name: string, otp: number) {
+ // Signup
+async insertDpartner(city: string, vehicletype: string, dpartner_email: string, dpartner_pass: string, dpartner_created_ip: string, dpartner_licence: string, dpartner_phone: string, vehicle_number: string, vehicle_name: string, otp: number) {
     let return_data = { error: true, message: "", data: {} };
-  
+
     try {
       await this.executeQuery("BEGIN");
-  
+
       // Get city ID
       let city_id: any = await this.citymodel.getCityIdByCityName(city);
       if (city_id.error) {
         return_data.message = city_id.message;
         return return_data;
       }
-  
+
       // Get vehicle type ID
-     
+
       let vehicleType_id: any = await this.vehicletypemodel.getVehicleTypeIdByName(vehicletype);
       if (vehicleType_id.error) {
         return_data.message = vehicleType_id.message;
         return return_data;
       }
-  
+
       // Check if email already exists
       this.where = `WHERE dpartner_email = '${dpartner_email}'`;
       const existingDpartner = await this.allRecords("*");
       let dpartner_id: number;
       let dpartnerResult;
-  
+
       if (existingDpartner.length > 0) {
         const dpartner = existingDpartner[0];
-  
+
         // If soft deleted, reactivate it
         if (dpartner.dpartner_is_deleted) {
           const updateData = {
@@ -94,7 +94,7 @@ export class dbDpartners extends appdb {
             dpartner_last_login: new Date().toISOString().replace("T", " ").slice(0, -1),
             dpartner_is_deleted: false,
           };
-          
+
           dpartnerResult = await this.updateRecord(dpartner.id, updateData);
           if (!dpartnerResult) {
             return_data.message = "FAILED_TO_REACTIVATE_DPARTNER";
@@ -123,16 +123,16 @@ export class dbDpartners extends appdb {
           dpartner_expiryotp: new Date(Date.now() + 10 * 60000).toISOString().replace("T", " ").slice(0, -1),
           dpartner_is_deleted: false,
         };
-  
+
         dpartnerResult = await this.insertRecord(insertData);
         if (!dpartnerResult) {
           return_data.message = "FAILED_TO_CREATE_DPARTNER";
           return return_data;
         }
-  
+
         dpartner_id = dpartnerResult;
       }
-  
+
       // Insert or update vehicle details
       const vehicleResult = await this.vehiclemodel.insertOrUpdateVehicle(dpartner_id, vehicleType_id.data.id, vehicle_number, vehicle_name, dpartner_created_ip);
       if (vehicleResult.error) {
@@ -140,30 +140,30 @@ export class dbDpartners extends appdb {
         return return_data;
       }
 
-      let data= await this.selectRecord(dpartnerResult, "*");
-      if(data.length===0){
+      let data = await this.selectRecord(dpartnerResult, "*");
+      if (data.length === 0) {
         return_data.message = "DPARTNER_NOT_FOUND";
         return return_data;
       }
       let user = data[0];
-  
+
       await this.executeQuery("COMMIT");
-  
+
       return_data.error = false;
       return_data.message = "DPARTNER_CREATED_SUCCESSFULLY";
       return_data.data = { dpartnerResult, vehicle: vehicleResult.data, user: user };
-  
+
       return return_data;
     } catch (error) {
       await this.executeQuery("ROLLBACK");
       return_data.message = "DATABASE_ERROR";
       return return_data;
     }
-  }
-  
+}
 
-  // Verify dpartner OTP
-  async verifydpartnerOTP(email: string, otp: number | null) {
+
+// Verify dpartner OTP
+async verifydpartnerOTP(email: string, otp: number | null) {
     let return_data = {
       error: true,
       message: "",
@@ -196,8 +196,6 @@ export class dbDpartners extends appdb {
 
       let updateData = {
         dpartner_isverify: true,
-        // dpartner_verifyotp: null,
-        // dpartner_expiryotp: null,
         dpartner_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
 
@@ -209,7 +207,7 @@ export class dbDpartners extends appdb {
       }
 
       return_data.error = false;
-      return_data.message = "DPARTNER_VERIFIED_SUCCESSFULLY.";
+      return_data.message = "delivery partner verify successfully.";
       return_data.data = updateResult;
       return return_data;
     } catch (error) {
@@ -219,7 +217,7 @@ export class dbDpartners extends appdb {
   }
 
   // Resend OTP
-  async resendOTP(email: string) {
+ async resendOTP(email: string) {
     let return_data = {
       error: true,
       message: "",
@@ -263,7 +261,7 @@ export class dbDpartners extends appdb {
   }
 
   // Login and finding dpartner
-  async finddpartnerByEmail(email: string) {
+async finddpartnerByEmail(email: string) {
     let return_data = {
       error: true,
       message: "",
@@ -273,13 +271,13 @@ export class dbDpartners extends appdb {
     try {
       this.where = `WHERE dpartner_email = '${email}' AND dpartner_is_deleted=false`;
       let result = await this.allRecords("*");
-      let user=result[0];
+      let user = result[0];
       if (result.length === 0) {
         return_data.message = "DPARTNER_NOT_FOUND";
         return return_data;
       }
-      if(!user.dpartner_isverify){
-        return_data.error=false
+      if (!user.dpartner_isverify) {
+        return_data.error = false
         return_data.message = "DPARTNER_NOT_VERIFIED";
         return_data.data = user;
         return return_data;
@@ -295,8 +293,8 @@ export class dbDpartners extends appdb {
     }
   }
 
-  // Update last login timestamp
-  async updateLastLogin(email: string) {
+// Update last login timestamp
+async updateLastLogin(email: string) {
     let return_data = {
       error: true,
       message: "",
@@ -323,12 +321,12 @@ export class dbDpartners extends appdb {
     }
   }
 
-  //logindpartner
+//logindpartner
 
-  async logindpartner(email: string, password: string) {
+async logindpartner(email: string, password: string) {
     let return_data = { error: true, message: "", data: {} as any, };
     try {
-         await this.executeQuery("BEGIN");
+      await this.executeQuery("BEGIN");
       let dpartnerResponse: any = await this.finddpartnerByEmail(email);
       if (dpartnerResponse.error) {
         await this.executeQuery("ROLLBACK");
@@ -356,22 +354,22 @@ export class dbDpartners extends appdb {
         await this.executeQuery("ROLLBACK");
         return_data.message = updateLastLoginResponse.message;
         return return_data;
-      } 
-      console.log("dpartner.dpartner_socketid",dpartner)
-    
-      let updatesocketid :any = await this.updateDpartnerSocketId(dpartner.id, dpartner. dpartner_socketid);
+      }
+      console.log("dpartner.dpartner_socketid", dpartner)
+
+      let updatesocketid: any = await this.updateDpartnerSocketId(dpartner.id, dpartner.dpartner_socketid);
       if (updatesocketid.error) {
         await this.executeQuery("ROLLBACK");
         return_data.message = "CUSTOMER_LOGIN_ERROR";
         return return_data;
       }
-  
+
       let SocketId = updatesocketid.data;
-      console.log("SocketId",SocketId)
+      console.log("SocketId", SocketId)
       await this.executeQuery("COMMIT");
       return_data.error = false;
       return_data.message = "DPARTNER_LOGIN_SUCCESS";
-      return_data.data = {dpartner: dpartner, SocketId: SocketId };
+      return_data.data = { dpartner: dpartner, SocketId: SocketId };
 
       return return_data;
 
@@ -418,7 +416,7 @@ export class dbDpartners extends appdb {
   }
 
   // Update password
-  async updatePassword(email: string, password: string,resetToken: string) {
+  async updatePassword(email: string, password: string, resetToken: string) {
     let return_data = {
       error: true,
       message: "",
@@ -426,25 +424,25 @@ export class dbDpartners extends appdb {
     };
 
     try {
-          const dpartner: any = await this.finddpartnerByEmail(email);
-          if (dpartner.error || !dpartner.data) {
-            return_data.message = dpartner.message;
-            return  return_data
-          }
-      
-          const { dpartner_resettoken, dpartner_resettoken_expiry } = dpartner.data;
-          if (!dpartner_resettoken || resetToken !== dpartner_resettoken) {
-            return_data.message = "TOKEN_INVALID";
-            return  return_data;
-          }
-      
-          let expiryTime = new Date(dpartner_resettoken_expiry + " UTC");
-          const currentTime = new Date();
-          if (currentTime > expiryTime) {
-            return_data.message ="TOKEN_EXPIRED";
-            return  return_data;
-          }
-      
+      const dpartner: any = await this.finddpartnerByEmail(email);
+      if (dpartner.error || !dpartner.data) {
+        return_data.message = dpartner.message;
+        return return_data
+      }
+
+      const { dpartner_resettoken, dpartner_resettoken_expiry } = dpartner.data;
+      if (!dpartner_resettoken || resetToken !== dpartner_resettoken) {
+        return_data.message = "TOKEN_INVALID";
+        return return_data;
+      }
+
+      let expiryTime = new Date(dpartner_resettoken_expiry + " UTC");
+      const currentTime = new Date();
+      if (currentTime > expiryTime) {
+        return_data.message = "TOKEN_EXPIRED";
+        return return_data;
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
       let updateData = {
         dpartner_password: hashedPassword,
@@ -497,7 +495,7 @@ export class dbDpartners extends appdb {
 
       return_data.error = false;
       return_data.message = "RESET_PASSWORD_MAIL_SENT";
-      return_data.data = { email: email , resetLink: resetLink,resetToken: resetToken };
+      return_data.data = { email: email, resetLink: resetLink, resetToken: resetToken };
       return return_data;
     } catch (error) {
       return_data.message = "ERROR_FORGOT_PASSWORD";
@@ -531,7 +529,7 @@ export class dbDpartners extends appdb {
   }
 
   // Update profile
-  async updatedpartnerProfile(id: number, dpartner_name: string,  dpartner_licence_number:string ,dpartner_phone: string,city_name:string,vehicletype_type:string,vehicle_number:string,vehicle_name:string) {
+  async updatedpartnerProfile(id: number, dpartner_name: string, dpartner_licence_number: string, dpartner_phone: string, city_name: string, vehicletype_type: string, vehicle_number: string, vehicle_name: string) {
     let return_data = {
       error: true,
       message: "",
@@ -539,14 +537,14 @@ export class dbDpartners extends appdb {
     };
 
     try {
-      
+
       let city_id: any = await this.citymodel.getCityIdByCityName(city_name);
-      console.log("city_id",city_id);
+      // console.log("city_id", city_id);
       if (city_id.error) {
         return_data.message = city_id.message;
         return return_data;
       }
-     
+
       let updateData = {
         dpartner_name: dpartner_name,
         dpartner_phone: dpartner_phone,
@@ -556,21 +554,21 @@ export class dbDpartners extends appdb {
       };
 
       let updateResult = await this.update(this.table, updateData, `WHERE id = ${id} AND dpartner_is_deleted = false`);
-      console.log("updateResult",updateResult);
+      // console.log("updateResult", updateResult);
       let vehicleType_id: any = await this.vehicletypemodel.getVehicleTypeIdByName(vehicletype_type);
       if (vehicleType_id.error) {
         return_data.message = vehicleType_id.message;
         return return_data;
       }
-     
+
       let updatevehicledata = {
         vehicle_name: vehicle_name,
         vehicle_number: vehicle_number,
         vehicletype_id: vehicleType_id.data,
         vehicle_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
-       }
-       let  vehicleupdateResult= await this.vehiclemodel.updateRecord(id,updatevehicledata);
-       console.log("vehicleupdateResult",vehicleupdateResult);
+      }
+      let vehicleupdateResult = await this.vehiclemodel.updateRecord(id, updatevehicledata);
+    
 
       if (!updateResult || updateResult.rowCount === 0) {
         return_data.message = "ERROR_UPDATING_PROFILE";
@@ -711,7 +709,7 @@ export class dbDpartners extends appdb {
       await this.executeQuery("COMMIT");
 
       return_data.error = false;
-      return_data.data ={ result,data} ;
+      return_data.data = { result, data };
       return_data.message = "AVAILABILITY_UPDATED_SUCCESSFULLY";
       return return_data;
     } catch (error) {
@@ -752,18 +750,18 @@ export class dbDpartners extends appdb {
     const return_data = { error: true, message: "", data: {} as any };
 
     try {
-  this.where = ` d LEFT JOIN vehicles v ON d.id = v.dpartner_id LEFT JOIN vehicletypes vt ON v.vehicletype_id = vt.id  LEFT JOIN cities c  ON c.id=d.dpartner_city_id WHERE d.id=${id} AND d.dpartner_is_deleted = false `;
-  
-  const selectField = `d.id, d.dpartner_name, d.dpartner_email, d.dpartner_phone, d.dpartner_licence_number, d.dpartner_city_id,v.vehicle_name, v.vehicle_number, v.vehicletype_id,vt.vehicletype_type ,c.city_name`;
-  
-  const result = await this.allRecords(selectField);
- 
+      this.where = ` d LEFT JOIN vehicles v ON d.id = v.dpartner_id LEFT JOIN vehicletypes vt ON v.vehicletype_id = vt.id  LEFT JOIN cities c  ON c.id=d.dpartner_city_id WHERE d.id=${id} AND d.dpartner_is_deleted = false `;
+
+      const selectField = `d.id, d.dpartner_name, d.dpartner_email, d.dpartner_phone, d.dpartner_licence_number, d.dpartner_city_id,v.vehicle_name, v.vehicle_number, v.vehicletype_id,vt.vehicletype_type ,c.city_name`;
+
+      const result = await this.allRecords(selectField);
+
       if (result && result.length > 0) {
         return_data.error = false;
         return_data.data = result[0];
-        return_data.message = "Delivery partner foun";
+        // return_data.message = "Delivery partner foun";
       } else {
-        return_data.message = "Delivery partner not foun";
+        return_data.message = "Delivery partner not found";
       }
     } catch (error) {
       return_data.message = "Error fetching delivery partner.";
@@ -776,14 +774,14 @@ export class dbDpartners extends appdb {
   async updateDpartnerSocketId(id: number, socketId: string) {
     const return_data = { error: true, message: "", data: {} as any };
     try {
-      console.log("Socket id",socketId)
-       let updatedata={
-          dpartner_socketid: socketId,
-          dpartner_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
-         
-       }
+      console.log("Socket id", socketId)
+      let updatedata = {
+        dpartner_socketid: socketId,
+        dpartner_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
+
+      }
       const result = await this.updateRecord(id, updatedata);
-      console.log("r",result)
+      console.log("r", result)
       if (!result) {
         return_data.message = "Failed to update socket ID.";
         return return_data;
@@ -792,7 +790,7 @@ export class dbDpartners extends appdb {
       return_data.message = "Socket ID updated successfully.";
       return_data.data = result;
       return return_data;
-      
+
     } catch (error) {
       console.error(" Error updating socket ID:", error);
       return { error: true, message: error };
@@ -800,23 +798,23 @@ export class dbDpartners extends appdb {
   }
 
   async removeSocketId(id: number) {
-    let return_data = { error: true, message: "" ,data:{} as any};
+    let return_data = { error: true, message: "", data: {} as any };
     try {
-       let updatedata={
-          dpartner_socketid: null,
-          dpartner_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
-       }
-      const result = await this.updateRecord(id,updatedata);
-      if(!result){
+      let updatedata = {
+        dpartner_socketid: null,
+        dpartner_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
+      }
+      const result = await this.updateRecord(id, updatedata);
+      if (!result) {
         return_data.message = "Failed to remove socket ID.";
         return return_data;
       }
-      return_data.error = false;  
+      return_data.error = false;
       return_data.message = "Socket ID removed successfully.";
       return_data.data = updatedata;
       return return_data;
-       
-      
+
+
     } catch (error) {
       console.error(" Error removing socket ID:", error);
       return { error: true, message: error };
@@ -824,21 +822,21 @@ export class dbDpartners extends appdb {
   }
 
   async getActiveDPartners() {
-    let return_data = { error: true, message: "", data: {result: new Array()}};
+    let return_data = { error: true, message: "", data: { result: new Array() } };
     try {
-       this.where = "WHERE dpartner_isavailable = true AND dpartner_is_deleted = false";
+      this.where = "WHERE dpartner_isavailable = true AND dpartner_is_deleted = false";
       const result = await this.allRecords("*");
-      console.log("resultt",result)
+      console.log("resultt", result)
       if (!result) {
         return_data.message = "Failed to fetch active delivery partners.";
         return return_data;
-       
+
       }
       return_data.error = false;
       return_data.data = result;
       return_data.message = "Active delivery partners fetched successfully.";
       return return_data;
-     
+
     } catch (error) {
       console.error(" Error fetching active delivery partners:", error);
       return { error: true, message: error };

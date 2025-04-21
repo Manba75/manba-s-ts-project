@@ -129,8 +129,6 @@ async verifyUserOTP(email: string, otp: number | null) {
 
       let updateData = {
         cust_isverify: true,
-        // cust_verifyotp: '',
-        // cust_expiryotp: '',
         cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
 
@@ -205,7 +203,6 @@ async resendOTP(email: string) {
 
   /**
    * Find user by email for login
-  
    */
 async findUserByEmail(email: string) {
     let return_data = {
@@ -242,27 +239,12 @@ async findUserByEmail(email: string) {
 
   /** login user */
 
-  async loginUser(
-    email: string,
-    password: string,
-    latitude: string,
-    longitude: string,
-    city: string,
-    street: string,
-    flatno: string,
-    landmark: string,
-    pincode: string
-  ) {
-    let return_data = {
-      error: true,
-      message: "",
-      data: {} as any,
-    };
+  async loginUser(email: string,password: string,latitude: string,longitude: string,city: string,street: string,flatno: string,landmark: string,pincode: string)
+   {
+    let return_data = {error: true,message: "",data: {} as any, };
   
     try {
       await this.executeQuery("BEGIN");
-  
-     
       let userResponse = await this.findUserByEmail(email);
       if (userResponse.error) {
         await this.executeQuery("ROLLBACK");
@@ -314,23 +296,18 @@ async findUserByEmail(email: string) {
       if (existingAddress.error || !existingAddress.data) {
         
         let insertedAddress = await this.addressmodel.insertAddress(city_id, user.id, userAddress, "home", user.cust_created_ip);
-        console.log(" Inserting New Address:", JSON.stringify(userAddress, null, 2));
-  
+      
         if (insertedAddress.error) {
           await this.executeQuery("ROLLBACK");
           return_data.message = "ADDRESS_INSERT_ERROR";
           return return_data;
         }
   
-        console.log(" New Address Inserted:", insertedAddress.data);
         addressDetails = insertedAddress.data;
       } else {
         
         let existingLat = existingAddress.data.address_latitude;
         let existingLong = existingAddress.data.address_longitude;
-  
-        // console.log(`Existing Lat: ${existingLat}, Existing Long: ${existingLong}`);
-        // console.log(` New Lat: ${latitude}, New Long: ${longitude}`);
   
         if (existingLat !== latitude || existingLong !== longitude) {
           let updateAddress = await this.addressmodel.updateAddress(user.id, userAddress);
@@ -340,10 +317,8 @@ async findUserByEmail(email: string) {
             return return_data;
           }
   
-          // console.log("Existing Address Updated:", existingAddress.data.id);
           addressDetails = userAddress;
         } else {
-          // console.log(" Address already up to date, no update needed.");
           addressDetails = existingAddress.data;
         }
       }
@@ -367,7 +342,7 @@ async findUserByEmail(email: string) {
       let Socketid = updatesocketid.data;
       await this.executeQuery("COMMIT");
   
-      // Final Response
+     
       return_data.error = false;
       return_data.message = "CUSTOMER_LOGIN_SUCCESS";
       return_data.data = { user, Socketid, address: addressDetails };
@@ -381,8 +356,6 @@ async findUserByEmail(email: string) {
     }
   }
   
-  
-
 
   /**
    * Update last login timestamp
@@ -419,12 +392,7 @@ async updateLastLogin(email: string) {
   // updated reset token
 async updateResetToken( email: string,resetToken: string | null,resetTokenExpiry: string | null) 
 {
-    
-    let return_data = {
-      error: true,
-      message: "",
-      data: {},
-    };
+    let return_data = {error: true,message: "",data: {},};
 
     try {
       let updateData: any = {
@@ -490,14 +458,10 @@ async customerforgotPassword(email: string) {
     }
 }
 
-  // updated password
+// updated password
   async updatePassword(email: string, password: string, resetToken: string) 
   {
-    let return_data = {
-      error: true,
-      message: "",
-      data: {} as any,
-    };
+    let return_data = {error: true,message: "", data: {} as any, };
 
     try {
 
@@ -526,8 +490,6 @@ async customerforgotPassword(email: string) {
 
       let updateData = {
         cust_password: hashedPassword,
-        // cust_resettoken: null,
-        // cust_resettoken_expiry: null,
         cust_updated_on: new Date().toISOString().replace("T", " ").slice(0, -1),
       };
 
@@ -549,11 +511,7 @@ async customerforgotPassword(email: string) {
 
   // get all users
 async getAllUser() {
-    let return_data = {
-      error: true,
-      message: "",
-      data: {results:new Array()},
-    };
+    let return_data = {error: true,message: "",data: {results:new Array()}, };
 
     try {
       this.where = "WHERE is_deleted= false";
@@ -576,11 +534,7 @@ async getAllUser() {
 
   //update profile
   async updateUserprofile(id: number, cust_name: string, cust_phone: string, street: string, flatno: string, landmark: string, city_name: string, pincode: string, latitude: number, longitude: number) {
-    let return_data = {
-        error: true,
-        message: "",
-        data: {} as any,
-    };
+    let return_data = {error: true,message: "",data: {} as any,};
 
     try {
         let updateData = {
@@ -600,7 +554,7 @@ async getAllUser() {
             return_data.message = "CITY_NOT_FOUND";
             return return_data;
         }
-        // Store updated address in address table
+       
         let addressData = {
             cust_id: id,
             address_street :street,
@@ -655,11 +609,7 @@ async getAllUser() {
 
   // delete user
   async deleteUserProfile(id: number) {
-    let return_data = {
-      error: true,
-      message: "",
-      data: 0,
-    };
+    let return_data = {error: true,message: "",data: 0, };
 
     try {
       let updateData = {
@@ -688,11 +638,7 @@ async getAllUser() {
   //update socket id
   async updateSocketId(id: number, socketId: string) {
   
-     let return_data = {
-       error: true,
-       message: "",
-       data: {} as any,
-     };
+     let return_data = {error: true,message: "",data: {} as any,};
  
      try {
       let updateData= { socket_id: socketId }
@@ -703,8 +649,6 @@ async getAllUser() {
          return_data.message = "CUSTOMER_UPDATE_SOCKETID_ERROR";
          return return_data;
        }
-       console.log("socketId",socketId)
-        console.log("userResult",updateData)
 
        return_data.error = false;
        return_data.message = "CUSTOMER_UPDATE_SOCKETID_SUCCESS";
@@ -746,11 +690,7 @@ async getAllUser() {
   
   // get user profile with address
   async getUserProfile(id: number) {
-    let return_data = {
-      error: true,
-      message: "",
-      data: {} as any,
-    };
+    let return_data = {error: true, message: "",data: {} as any, };
   
     try {
       let query = `
@@ -822,11 +762,7 @@ async getAllUser() {
   }
 
   async getCustomerBySocketId(socketId: string) {
-    let return_data = {
-      error: true,
-      message: "",
-      data: {} as any,
-    };
+    let return_data = {error: true, message: "",  data: {} as any,  };
 
     try {
       this.where = `WHERE socket_id = '${socketId}'`;

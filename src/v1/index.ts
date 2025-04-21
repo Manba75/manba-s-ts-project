@@ -96,7 +96,7 @@ export async function dpartnerAuthenticate(req: Request, res: Response, next: Ne
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    console.log("Decoded token:", decoded); // Debugging line
+
     if (!decoded || typeof decoded !== "object" || !decoded.id) {
       return_data.message = "Invalid token";
       res.send(functionsObj.output(0, return_data.message));

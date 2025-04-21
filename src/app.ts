@@ -12,16 +12,16 @@ let app=require('./v1/index')
 const result = dotenv.config({ path: path.join(__dirname, '../', '.env') });
 if (result.error) throw result.error;
 
-const port: number = Number(process.env.PORT) || 5000;
+const port: number = Number(process.env.PORT) || 8000;
 
 const httpServer = createServer(app);
 const io = new Server(httpServer,
   {
     cors: {
-      origin: ['http://localhost:4200'],  // ✅ Ensure this matches your frontend URL exactly
+      origin: ['http://localhost:4200'], 
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      allowedHeaders: ['Content-Type', 'Authorization'], // ✅ These are correct
-      exposedHeaders: ['Authorization'], // ✅ Allow frontend to access Authorization header
+      allowedHeaders: ['Content-Type', 'Authorization'], 
+      exposedHeaders: ['Authorization'], 
       credentials: true
     },
       
@@ -33,6 +33,7 @@ initSocket(io);
 httpServer.listen(port, () => {
   try {
     console.log(`Server is running on port ${port}`);
+    console.log("database connected successfully");
   } catch (error) {
     console.log("Error", error);
   }

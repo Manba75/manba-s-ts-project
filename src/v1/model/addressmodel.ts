@@ -94,9 +94,7 @@ export class dbaddress extends appdb {
     return return_data;
   }
 
-  /**
-   * ✅ Update Address - If latitude & longitude change, update the address
-   */
+ //update address 
   async updateAddress(cust_id: number, address: any) {
     const return_data = {
       error: true,

@@ -1,7 +1,7 @@
 import { dbaddress } from "./addressmodel";
 import { appdb } from "./appdb";
 import { dbCity } from "./citymodel";
-import { VehicletypeService } from '../../../../finalfrontend/src/app/services/vehicletype.service';
+
 import { dbVehicleType } from "./vehicletypemodel";
 import { generateOTP } from "../library/generateOTP";
 import { get } from "http";
@@ -114,15 +114,6 @@ export class dborders extends appdb {
       return return_data;
     }
     
-    //  insertResult;
-    // this.where=`o LEFT JOIN customers c ON o.cust_id = c.id `;
-    // this.where += ` o.is_deleted = false AND c.is_deleted = false AND d.dpartner_is_deleted = false`;
-    // // const orderDetails = await this.selectRecord(orderId,`o.id, o.cust_id, o.dpartner_id, o.order_status, o.order_delivery_charge, o.order_date, d.  c.cust_name , c.cust_phone`);
-    // if (!orderDetails || orderDetails.length === 0) {
-    
-    //   return_data.message = "ORDER_NOT_FOUND";
-    //   return return_data;
-    // }
     await this.executeQuery("COMMIT");
   
 
@@ -177,7 +168,7 @@ export class dborders extends appdb {
     }
   }
 
- 
+ //accept order
   async acceptOrder(orderId: number, dpartnerId: number) {
     let return_data = { error: true, message: " ", data: {} };
 
@@ -225,16 +216,10 @@ export class dborders extends appdb {
             return_data.message = "DPARTNER_AVAILABILITY_UPDATE_FAILED";
             return return_data;
         }
-        // console.log("custide", order.data.cust_id);
-        // Send OTP Email to Customer
+      
         let mailService = new MailService();
         await mailService.sendOrderOTPMail(orderId, customer.cust_email, otp);
-        // let data={
-        //   orderId: orderId,
-        //   updateData,
-        // //  cust_id: 
-      
-        // }
+       
         return_data.error = false;
         return_data.message = "ORDER_ACCEPT_SUCCESS";
         return_data.data = {updateData, orderId, otp};
@@ -300,17 +285,21 @@ export class dborders extends appdb {
     const return_data = { error: true, message: "", data: null };
 
     try {
-      this.where=`o LEFT JOIN deliverypartners d ON o.dpartner_id=d.id LEFT JOIN customers c ON o.cust_id=c.id WHERE o.is_deleted = false AND d.dpartner_is_deleted = false AND c.is_deleted = false`;
-      this.where += ` AND o.cust_id = ${customerId}`;
-      this.where+=`ORDER BY 
-                CASE 
-                    WHEN o.order_status = 'accepted' THEN 1 
-                    WHEN o.order_status = 'pickup' THEN 2 
-                     WHEN o.order_status = 'in-progress' THEN 3
-                    WHEN o.order_status = 'delivered' THEN 4
-                    ELSE 5
-                END,
-                o.order_date DESC`;
+      this.where = `o LEFT JOIN deliverypartners d ON o.dpartner_id=d.id 
+              LEFT JOIN customers c ON o.cust_id=c.id 
+              WHERE o.is_deleted = false 
+              AND d.dpartner_is_deleted = false 
+              AND c.is_deleted = false`;
+
+this.where += ` AND o.cust_id = ${customerId}`;
+
+this.where += ` ORDER BY CASE 
+    WHEN o.order_status = 'accepted' THEN 1 
+    WHEN o.order_status = 'pickup' THEN 2 
+    WHEN o.order_status = 'in-progress' THEN 3 
+    WHEN o.order_status = 'delivered' THEN 4 
+    ELSE 5 
+END, o.order_date DESC`;
 
       const orders = await this.allRecords(`o.id, o.cust_id, o.dpartner_id, o.order_status, o.order_delivery_charge, o.order_date, d.dpartner_name, d.dpartner_phone, c.cust_name`);
 
@@ -339,15 +328,16 @@ export class dborders extends appdb {
         WHERE o.is_deleted = false AND c.is_deleted = false
       `;
       this.where += ` ORDER BY 
-                CASE 
-                 WHEN o.order_status = 'pending' THEN 1 
-                    WHEN o.order_status = 'accepted' THEN 2
-                    WHEN o.order_status = 'pickup' THEN 3
-                     WHEN o.order_status = 'in-progress' THEN 4
-                    WHEN o.order_status = 'delivered' THEN 5
-                    ELSE 6
-                END,
-                o.order_date DESC`;
+      CASE 
+          WHEN o.order_status = 'pending' THEN 1
+          WHEN o.order_status = 'accepted' THEN 2
+          WHEN o.order_status = 'pickup' THEN 3
+          WHEN o.order_status = 'in-progress' THEN 4
+          WHEN o.order_status = 'delivered' THEN 5
+          ELSE 6
+      END,
+      o.order_date DESC`;
+  
 
       let orders = await this.allRecords(`
         o.id,
@@ -356,7 +346,6 @@ export class dborders extends appdb {
         CONCAT(o.order_pickup_flatno, ', ', o.order_pickup_street, ', ', o.order_pickup_landmark, ', ', o.order_pickup_city, ', ', o.order_pickup_pincode) AS pickup_address, 
         CONCAT(o.order_drop_flatno, ', ', o.order_drop_street, ', ', o.order_drop_landmark, ', ', o.order_drop_city, ', ', o.order_drop_pincode) AS drop_address,  o.order_status,  o.order_delivery_charge, o.order_date,  c.cust_name, c.cust_phone `)
 
-      // console.log("orders", orders);
       if (!orders || orders.length === 0) {
         return_data.message = "ORDER_NOT_FOUND";
         return return_data;
