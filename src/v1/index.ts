@@ -125,5 +125,6 @@ app.use("/v1/city", require('./controller/citycontroller'));
 app.use("/v1/vehicletype", require("./controller/vehicletypecontroller"));
 app.use("/v1/dpartner", require("./controller/dpartnercontroller"));
 app.use("/v1/order", require("./controller/ordercontroller"));
+// app.use("/v1/admin", require("./controller/admin"));
 
 module.exports = app;
